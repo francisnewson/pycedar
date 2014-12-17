@@ -1,0 +1,2 @@
+#source me
+export PYTHONPATH=${PYTHONPATH}:/Users/francisnewson/Documents/Birmingham/na62/ktag/pycedar

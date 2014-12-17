@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+import sys
+import pycedar
+import gzip
+import math
+
+print( 'Loading PMT Test Sheet:' )
+test_sheet = pycedar.load_test_sheet( open( 'params/pmt_test_sheet.dat' ) )
+print ( test_sheet.head() )
+
+print( '\n' )
+
+print( 'Loading PMT positions:' )
+pmt_pos = pycedar.load_pmt_positions( open( 'params/pmt_positions.dat' ) )
+print ( pmt_pos.head() )
+
+print( '\n' )
+
+print( 'PMT efficiency by type' )
+mean_blue_sens = test_sheet.groupby( pycedar.get_pmt_type )['cathode_blue_sens'].mean() 
+print ( mean_blue_sens)
+
+print( '\n' )
+
+print( 'Blue correction by position' )
+pos_blue_correction = pycedar.get_pos_blue_corr( pmt_pos, test_sheet )
+print ( pos_blue_correction.head() )
+
+print( '\n' )
+
+print ('Loading PMT hit data:' )
+pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.csv.gz' ) )
+print( pmt_hit_data.head() )
+
+print( '\n' )
+
+print( 'Correcting PMT hit data:' )
+blue_corr_pmt_hit_data = pmt_hit_data * pos_blue_correction['blue_corr']
+print( blue_corr_pmt_hit_data.head() )
+
+print( '\n' )
+
+print( 'Calculate raw asym at 0,0:' )
+octant_hits = pmt_hit_data.loc[20000, 0, 0].groupby( pycedar.get_octant ).sum()
+print( octant_hits )
+print( pycedar.oct_asym(octant_hits ) )
+
+print( '\n' )
+
+print( 'Calculate raw per octant corrections:' )
+corrections = octant_hits.mean() / octant_hits
+corr_stat_err = pycedar.get_octant_corr_stat_err( octant_hits )
+print( corrections )
+print( corr_stat_err )
+
+print( '\n' )
+
+print( 'Calculate blue corr asym at 0,0:' )
+blue_corr_octant_hits = blue_corr_pmt_hit_data.loc[20000, 0, 0].groupby( pycedar.get_octant ).sum()
+print( blue_corr_octant_hits )
+print( pycedar.oct_asym(blue_corr_octant_hits ) )
+
+print( '\n' )
+print( 'Calculate raw per octant corrections:' )
+blue_corr_corrections = blue_corr_octant_hits.mean() / blue_corr_octant_hits
+blue_corr_scale_error = pycedar.get_octant_corr_scale_err( octant_hits  ,0.01 / math.sqrt( 48 ) )
+print( blue_corr_corrections )
+print( blue_corr_scale_error ) 
