@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+import pycedar
+import matplotlib.pyplot as plt
+
+print( 'Loading PMT Test Sheet:' )
+test_sheet = pycedar.load_test_sheet( open( 'params/pmt_test_sheet.dat' ) )
+
+
+fig = plt.figure( figsize = [8, 6] )
+ax = fig.add_subplot( 111 )
+ax.grid( True )
+
+
+fig.set_tight_layout(True)
+ax.plot( test_sheet['cathode_luminous_sens'], test_sheet['cathode_blue_sens'], 'o' )
+ax.set_xlabel( 'Cathde Luminous Sensitivity'  )
+ax.set_ylabel( 'Cathode Blue Sensitivity'  )
+
+plt.ylim( ymin = 0 )
+plt.xlim( xmin = 0 )
+ax.grid( True )
+
+plt.savefig( 'output/pmt_lum_blue.pdf', format = 'pdf', transparent = 'true' )
+
+ax.cla()
+
+ax.plot( test_sheet['anode_luminous_sens'], test_sheet['cathode_blue_sens'], 'o' )
+ax.set_xlabel( 'Anode Luminous Sensitivity'  )
+ax.set_ylabel( 'Cathode Blue Sensitivity'  )
+
+plt.ylim( ymin = 0 )
+plt.xlim( xmin = 0 )
+ax.grid( True )
+
+plt.savefig( 'output/pmt_anode_lum_blue.pdf', format = 'pdf', transparent = 'true' )

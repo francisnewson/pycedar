@@ -63,6 +63,6 @@ print( pycedar.oct_asym(blue_corr_octant_hits ) )
 print( '\n' )
 print( 'Calculate raw per octant corrections:' )
 blue_corr_corrections = blue_corr_octant_hits.mean() / blue_corr_octant_hits
-blue_corr_scale_error = pycedar.get_octant_corr_scale_err( octant_hits  ,0.01 / math.sqrt( 48 ) )
+blue_corr_full_error = pycedar.get_octant_corr_full_err( octant_hits  ,0.01  )
 print( blue_corr_corrections )
-print( blue_corr_scale_error ) 
+print( blue_corr_full_error ) 

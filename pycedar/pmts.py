@@ -25,17 +25,17 @@ def get_pmt_type( serial_number):
 
     raise KeyError( serial_number )
 
-def get_serial_blue_corr( test_sheet):
+def get_serial_blue_corr( test_sheet, blue_column = 'cathode_blue_sens'):
     """Get map of serial_number to requred blue correction
 
     :param test_sheet: PMT Test sheet info
     :type test_sheet: pandas.DataFrame
 
     """
-    pmt_type_groups = test_sheet.groupby( get_pmt_type)['cathode_blue_sens']
+    pmt_type_groups = test_sheet.groupby( get_pmt_type)[ blue_column ]
     return pmt_type_groups.transform( lambda x: x / x.mean() )
 
-def get_pos_blue_corr( pmt_pos, test_sheet ):
+def get_pos_blue_corr( pmt_pos, test_sheet, blue_column = 'cathode_blue_sens' ):
     """Get map of position_id to requred blue correction
 
     :param pmt_pos: PMT position map
@@ -44,5 +44,6 @@ def get_pos_blue_corr( pmt_pos, test_sheet ):
     :type test_sheet: pandas.DataFrame
 
     """
-    result = pmt_pos.join( get_serial_blue_corr( test_sheet), on = 'serial_number' )
-    return  result.rename( columns = {'cathode_blue_sens' : 'blue_corr' } )
+    result = pmt_pos.join( get_serial_blue_corr( test_sheet, blue_column),
+            on = 'serial_number' )
+    return  result.rename( columns = { blue_column : 'blue_corr' } )

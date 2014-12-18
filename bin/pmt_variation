@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+import pycedar
+import matplotlib.pyplot as plt
+
+print( 'Loading PMT Test Sheet:' )
+test_sheet = pycedar.load_test_sheet( open( 'params/pmt_test_sheet.dat' ) )
+
+#set up plot
+fig = plt.figure( figsize = [8,6])
+ax =  fig.add_subplot(111)
+
+plt.axis( [5, 15, 0, 50 ] )
+ax.grid(True)
+
+for (pmt_type, pmt_data), color in zip(
+        test_sheet.groupby( pycedar.get_pmt_type), ['LightGreen', 'DarkCyan'] ):
+    print ( color )
+    n, bins, patches = ax.hist( 
+            pmt_data['cathode_blue_sens'].values, histtype = 'stepfilled',
+            label = pmt_type, color = [color], edgecolor = color  )
+
+plt.xlabel( 'Blue sensitivity' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper left')
+
+fig.set_tight_layout(True)
+
+plt.savefig( 'output/blue_varation.pdf', format = 'pdf', transparent = 'true' )
+plt.close()

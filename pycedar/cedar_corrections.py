@@ -3,7 +3,9 @@ import math
 import pandas as pd
 
 def get_octant_corrs( octant_hits ):
-     return  octant_hits.mean() / octant_hits
+     result =   octant_hits.mean() / octant_hits
+     result.name = 'corrs'
+     return result
 
 def get_octant_corr_stat_err( octant_hits ):
     """Returns statistical errors for octant correction
@@ -26,7 +28,11 @@ def get_octant_corr_stat_err( octant_hits ):
     #return ( oc*oc / octant_hits 
              #- oc / (octant_hits * octant_hits ) / len(octant_hits ) )
 
-def get_octant_corr_scale_err( octant_hits, scale_error ):
+
+def full_err( h, s, M , N ):
+    return ( ( h * s**2 / M  +1 ) * ( 1 / h - 1 / h / N ) )
+
+def get_octant_corr_full_err( octant_hits, scale_error ):
     """Returns errors for octant correction
     factor calculation assuming a constant fraction error on
     the blue sensitivity data
@@ -35,8 +41,12 @@ def get_octant_corr_scale_err( octant_hits, scale_error ):
 
     """
 
-    oc = get_octant_corrs( octant_hits )
+    corrs = get_octant_corrs( octant_hits )
+    corrs_counts =  pd.concat( [corrs, octant_hits] , axis = 1 )
+    corrs_counts.columns = [ 'corrs', 'counts' ]
     N = len( octant_hits )
+    M = 48
 
-    return oc.apply( lambda x :  math.sqrt(
-        scale_error**2 * ( ( x - 1/N)**2 + ( N+1)/N ) ))
+    return corrs_counts.apply( 
+            lambda x :  math.sqrt( full_err( x['counts'], scale_error, M, N ) ), 
+            axis = 1)
