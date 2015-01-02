@@ -1,0 +1,180 @@
+#!/usr/bin/env python
+import scipy.constants
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import sys
+import pycedar
+import math
+
+new_qe = np.vectorize( pycedar.qe_R9880U_110 )
+old_qe = np.vectorize( pycedar.qe_R7400U_03 )
+
+ls = np.linspace( 100, 2000, 1900 )
+bb = pycedar.black_body_generator( 2856 )
+bbs = bb( 1e-9*ls )
+bbs /= max( bbs )
+
+new_qe_pnts = new_qe(ls)
+old_qe_pnts = old_qe(ls)
+
+standard_eye = pycedar.get_standard_eye_data()
+corning_blue = pycedar.get_corning_blue_data()
+corning_blue['transmission'] /= max(corning_blue['transmission'])
+
+################################################################################
+
+fig = plt.figure( figsize = [8, 6] )
+ax = fig.add_subplot( 111 )
+ax.grid( True )
+
+ax.fill_between( standard_eye['wavelength'], 0, standard_eye['eff'], 
+        linewidth = 2, facecolor = 'green', alpha=0.2, label = 'Standard Eye' )
+
+ax.fill_between( corning_blue['wavelength'], 0, corning_blue['transmission'], 
+        linewidth = 2, facecolor = 'blue', alpha=0.2, label = 'Corning blue' )
+
+ax.fill_between( ls, 0, bbs, 
+        linewidth = 2, facecolor = 'gray', alpha=0.4, label = 'Black body 2856k' )
+
+ax.plot( ls, new_qe_pnts ,
+        linewidth = 2, color = 'black', linestyle = '--', label = 'QE R9880U-110' )
+
+ax.plot( ls, old_qe_pnts ,
+        linewidth = 2, color = 'black', label = 'QE R7400U-03' )
+
+ax.text( 290, 0.75, 'Corning Blue')
+ax.text( 435, 0.93, 'Standard Eye')
+ax.text( 640, 0.82, 'Tungsten source')
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper left')
+
+fig.set_tight_layout(True)
+ax.set_xlabel( 'Wavelength (nm)' )
+
+ax.set_xlim( 150, 800 )
+plt.savefig( 'output/pmt_spectra.pdf', format = 'pdf', transparent = 'true', )
+
+plt.clf()
+
+################################################################################
+
+mk = 0.493677
+pk = 70
+EK = math.sqrt( mk**2 + pk**2 )
+beta = math.sqrt( 1 / ( 1 + mk**2 / pk**2 ) )
+invbeta = 1 / beta 
+print( invbeta )
+
+
+pressure = 1.1710
+temperature = 293.15
+
+
+ref_index = np.vectorize( lambda x : pycedar.ref_n2( 0.001*x, pressure , temperature))
+ref_pnts = ref_index( ls )
+
+cherenkov_fun = np.vectorize( lambda x : pycedar.cherenkov_radiation( 0.001*x, beta, pressure, temperature ) )
+cherenkov_pnts = cherenkov_fun( ls )
+
+cherenkov_pd = pd.read_csv( 'data/cherenkov.dat', delim_whitespace = True, index_col = 'bin' )
+
+fig = plt.figure( figsize = [6, 4] )
+ax = fig.add_subplot( 111 )
+ax.grid( True )
+
+ax.plot( ls, ref_pnts, color = 'black', linestyle = '-', linewidth = 2, label = 'N2 Refractive Index' )
+ax.plot( (0, 1000), (invbeta, invbeta), color = 'black', linestyle = '--', linewidth = 2, label = r'$ 1/ \beta$' )
+ax.set_xlim( 100, 800 )
+ax.set_ylim( 1, 1.001 )
+ax.get_yaxis().get_major_formatter().set_useOffset(False)
+fig.set_tight_layout(True)
+ax.set_xlabel( 'Wavelength (nm)' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+
+plt.savefig( 'output/rindex.pdf', format = 'pdf', transparent = 'true', )
+
+plt.clf()
+
+################################################################################
+
+fig = plt.figure( figsize = [6, 4] )
+ax = fig.add_subplot( 111 )
+ax.grid( True )
+
+ax.plot( ls, cherenkov_pnts, color = 'black', linestyle = '--', linewidth = 2, label = 'Cherenkov Distribution' )
+ax.plot( cherenkov_pd['min_edge'], 0.92e-7*cherenkov_pd['photons'], color = 'DarkRed', ls = 'steps-post', linewidth = 2, label = 'NA62MC Photons' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+
+ax.set_xlim( 100, 800 )
+ax.set_ylim( 0, 0.001 )
+
+fig.set_tight_layout(True)
+ax.set_xlabel( 'Wavelength (nm)' )
+ax.get_yaxis().set_ticklabels([])
+
+plt.savefig( 'output/cherenkov.pdf', format = 'pdf', transparent = 'true', )
+
+plt.clf()
+
+################################################################################
+
+fig = plt.figure( figsize = [6, 4] )
+ax = fig.add_subplot( 111 )
+ax.grid( True )
+
+quartz_fun_1 = np.vectorize( lambda x : pycedar.quartz_window_transmittance( 1, x ) )
+quartz_fun_2 = np.vectorize( lambda x : pycedar.quartz_window_transmittance( 2, x ) )
+quartz_fun_5 = np.vectorize( lambda x : pycedar.quartz_window_transmittance( 5, x ) )
+quartz_fun_6 = np.vectorize( lambda x : pycedar.quartz_window_transmittance( 6, x ) )
+
+ax.plot( ls, quartz_fun_1( ls ), color = 'DarkBlue', linewidth = 2, linestyle = '-.', label = 'Windows 1, 3, 7' )
+ax.plot( ls, quartz_fun_2( ls ), color = 'DarkGreen', linewidth = 2, linestyle = '--', label = 'Windows 2, 4, 8' )
+ax.plot( ls, quartz_fun_5( ls ), color = 'DarkRed', linewidth = 4, linestyle = ':', label = 'Window 5' )
+ax.plot( ls, quartz_fun_6( ls ), color = 'black', linewidth = 2, linestyle = '-', label = 'Window 6' )
+
+ax.set_xlim( 100, 800 )
+ax.set_ylim( 0.6, 1.0 )
+
+fig.set_tight_layout(True)
+ax.set_xlabel( 'Wavelength (nm)' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'lower right')
+
+plt.savefig( 'output/quartzwindows.pdf', format = 'pdf', transparent = 'true', )
+
+plt.clf()
+
+################################################################################
+
+fig = plt.figure( figsize = [6, 4] )
+ax = fig.add_subplot( 111 )
+ax.grid( True )
+
+mangin_fun, spherical_fun, cap_fun = ( np.vectorize(x) for x in
+        [ pycedar.mangin_mirror_reflectivity,
+            pycedar.spherical_mirror_reflectivity, 
+            pycedar.external_lens_transmittance ] )
+
+ax.plot( ls, mangin_fun( ls ), color = 'DarkBlue', linewidth = 2, linestyle = '-', label = 'Mangin mirror' )
+ax.plot( ls, spherical_fun( ls ), color = 'DarkRed', linewidth = 2, linestyle = '-.', label = 'Spherical mirrors' )
+ax.plot( ls, cap_fun( ls ), color = 'DarkGreen', linewidth = 2, linestyle = '--', label = 'Optical cap lens' )
+
+print( cap_fun(500 ) )
+
+ax.set_xlim( 100, 800 )
+ax.set_ylim( 0, 1.0 )
+
+fig.set_tight_layout(True)
+ax.set_xlabel( 'Wavelength (nm)' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'lower right')
+
+plt.savefig( 'output/transmittance.pdf', format = 'pdf', transparent = 'true', )

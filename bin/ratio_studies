@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+import pycedar
+import matplotlib.pyplot as plt
+import numpy as np
+import sys
+import gzip
+import math
+
+print ('Loading PMT hit data:' )
+pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.csv.gz' ) )
+
+print( pmt_hit_data)
+
+#pmt_1mm_data = pmt_hit_data[pmt_hit_data[

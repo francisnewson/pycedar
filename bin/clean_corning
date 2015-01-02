@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+import pandas as pd
+import scipy.interpolate as spint
+import numpy as np
+
+raw_corning = pd.read_csv( 'params/corning_blue.data', delim_whitespace = True  )
+f_corning =  spint.interp1d(raw_corning['wavelength'], raw_corning['transmission'] ) 
+
+wls = np.linspace(300, 500, 201 )
+clean_corning =  f_corning( wls )
+
+with open( 'params/clean_corning.dat', 'w' ) as f:
+    f.write( '{0:15} {1:15}\n'.format( 'wavelength', 'transmission' ) )
+    for wl, tr in zip( wls, clean_corning ):
+        f.write( '{0:15} {1:15}\n'.format( wl, tr ) )
