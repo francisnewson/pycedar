@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 import pycedar
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
 from scipy.interpolate import UnivariateSpline
+from matplotlib.ticker import FuncFormatter
 import sys
 import gzip
 import math
@@ -23,6 +25,27 @@ def get_splines( ds, coord, coord_range, asym, asym_err, s = 10 ):
 
     return asym_spline, inverted_spline
 
+def blind_colormap( source, name, blind):
+    brbgcmp = plt.get_cmap( source )
+    brbgdata = brbgcmp._segmentdata.copy()
+
+    for colour in ['red', 'green', 'blue' ]:
+        #jiggery
+        colorlist = brbgdata[colour]
+        clist = [  list( i ) for i in colorlist  ]
+        clist[5][1] = clist[4][2]
+        clist[5][2] = clist[6][1]
+        clist.insert( 6, clist[5] )
+        clist[5] = [ 0.5 - 0.5*blind, clist[5][1], 0.7 ]
+        clist[6] = [ 0.5 + 0.5*blind, 0.7 , clist[6][2]  ]
+        colorlist = [ tuple( i ) for i in clist ]
+        brbgdata[colour] = colorlist
+
+    newcm = mpl.colors.LinearSegmentedColormap( name , brbgdata )
+    return newcm
+
+
+
 print ('Loading PMT hit data:' )
 pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.42.csv.gz' ) )
 
@@ -38,7 +61,11 @@ pmt_1500um_octants = pmt_hit_data.loc[1500,:,:].groupby( pycedar.get_octant, axi
 #apply corrections
 pmt_1500um_corr_octants  = pmt_1500um_octants  * corrections
 #calculate asymmetries
-pmt_1500um_asym = pmt_1500um_octants.apply( pycedar.oct_asym, axis = 1  )
+pmt_1500um_asym = pmt_1500um_corr_octants.apply( pycedar.oct_asym, axis = 1  )
+pmt_1500um_raw_asym = pmt_1500um_octants.apply( pycedar.oct_asym, axis = 1  )
+
+print( pmt_1500um_raw_asym.loc[0,0] )
+print( pmt_1500um_asym.loc[0,0] )
 
 ##################################################
 
@@ -48,51 +75,180 @@ y_spline, y_inverted_spline = get_splines( pmt_1500um_asym, 'y', (-2000, 2000 ),
 #set x to zero to plot y dependence
 asym_y = pmt_1500um_asym.xs( 0, level = 'x', axis = 0 ) 
 
-#set x to zero to plot y dependence
+#set y to zero to plot y dependence
 asym_x = pmt_1500um_asym.xs( 0, level = 'y', axis = 0 )
+raw_asym_x = pmt_1500um_raw_asym.xs( 0, level = 'y', axis = 0 )
 
 ##################################################
 
-position = np.linspace(-2000,2000,100) # 100 linearly spaced numbers
+print ('Loading PMT test data.' )
+pmt_test_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.52.csv.gz' ) )
 
+#Select 1.5mm diaphragm
+pmt_1500um_test = pmt_test_data.loc[1500,:,:]
+#Add sum noise
+noise = np.random.normal( 1, 0.0001 , 384 )
+pmt_1500um_test = pmt_1500um_test  * noise
+pmt_1500um_test_octants = pmt_1500um_test.groupby( pycedar.get_octant, axis = 1).sum()
+#apply corrections
+pmt_1500um_corr_test_octants  = pmt_1500um_test_octants  * corrections
+#calculate asymmetries
+pmt_1500um_test_asym = pmt_1500um_corr_test_octants.apply( pycedar.oct_asym, axis = 1  )
 
+##################################################
+
+print ('Computing residuals.' )
+pmt_1500um_test_asym.reset_index( inplace = True )
+pmt_1500um_test_asym['xspline'] = x_inverted_spline( pmt_1500um_test_asym['lr'] )
+pmt_1500um_test_asym['yspline'] = y_inverted_spline( pmt_1500um_test_asym['ud'] )
+pmt_1500um_test_asym['dx'] = pmt_1500um_test_asym['xspline'] - pmt_1500um_test_asym['x']
+pmt_1500um_test_asym['dy'] = pmt_1500um_test_asym['yspline'] - pmt_1500um_test_asym['y']
+
+##################################################
+# ____  _       _   _   _
+#|  _ \| | ___ | |_| |_(_)_ __   __ _
+#| |_) | |/ _ \| __| __| | '_ \ / _` |
+#|  __/| | (_) | |_| |_| | | | | (_| |
+#|_|   |_|\___/ \__|\__|_|_| |_|\__, |
+#                               |___/
+#
+##################################################
+
+def len_mm( x, pos ):
+    return '{0:1.1f}'.format( x*1e-3)
+
+format_mm = FuncFormatter( len_mm )
+
+print ('Plotting splines')
+#SPLINES
 fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
 ax = fig.add_subplot( 111 )
 
 ax.grid( True )
 ax.set_ylim( -1, 1 )
 ax.set_xlim( -3000, 3000 )
 
+position = np.linspace(-2000,2000,100) # 100 linearly spaced numbers
 ax.errorbar( asym_x.index.values, asym_x['lr'] , yerr = asym_x['lr_err'], fmt='o')
 ax.plot( position, x_spline( position) )
 plt.savefig( 'output/ratios/asym1500.pdf', format = 'pdf', transparent = 'true' )
 
-plt.clf()
+plt.clf() ########################################
 
+#ZOOMED SPLINES
 fig = plt.figure( figsize = [6, 6] )
+fig.set_tight_layout(True)
 ax = fig.add_subplot( 111 )
 
 ax.grid( True )
-ax.set_ylim( -0.05, 0.05 )
-ax.set_xlim( -1000, 1000 )
+ax.set_ylim( -0.6, 0.6 )
+ax.set_ylabel( 'L/R Asymmetry' )
+ax.set_xlim( -4000, 4000 )
+ax.xaxis.set_major_formatter(format_mm)
+ax.set_xlabel( 'x (mm)')
 
-ax.errorbar( asym_x.index.values, asym_x['lr'] , yerr = asym_x['lr_err'], fmt='o')
-ax.plot( position, x_spline( position) )
+ax.errorbar( asym_x.index.values, asym_x['lr'] , yerr = asym_x['lr_err'], fmt='--o', 
+        markeredgecolor = 'None', color = 'DarkBlue')
+#ax.errorbar( raw_asym_x.index.values, raw_asym_x['lr'] , yerr = raw_asym_x['lr_err'], fmt='-o')
+#ax.plot( position, x_spline( position) )
 plt.savefig( 'output/ratios/asym1500_zoom.pdf', format = 'pdf', transparent = 'true' )
 
 plt.cla()
 
-ax.set_xlim( -0.05, 0.05 )
-ax.set_ylim( -2000, 2000 )
+#INVERTED SPLINES
+ax.set_xlim( -0.10, 0.10 )
+ax.set_ylim( -2500, 2500 )
+ax.set_xlabel( 'L\R Asymmetry' )
+ax.yaxis.set_major_formatter(format_mm)
+ax.set_ylabel( 'x (mm)')
 ax.grid( True )
 ax.errorbar( asym_x['lr'] , asym_x.index.values, xerr = asym_x['lr_err'], fmt='o')
 asym_range = np.linspace( -0.1,0.1, 200 )
+
 ax.plot( asym_range, x_inverted_spline( asym_range) )
 
-plt.savefig( 'output/ratios/asym1500.inverted.pdf', format = 'pdf', transparent = 'true' )
+plt.savefig( 'output/ratios/asym1500_inverted.pdf', format = 'pdf', transparent = 'true' )
 
 plt.clf()
 
+##################################################
+# ____            _   _
+#/ ___|  ___ __ _| |_| |_ ___ _ __
+#\___ \ / __/ _` | __| __/ _ \ '__|
+# ___) | (_| (_| | |_| ||  __/ |
+#|____/ \___\__,_|\__|\__\___|_|
+#
 
+
+algcm = blind_colormap( 'BrBG', 'algcm', 0.03 )
+plt.register_cmap( cmap = algcm )
+
+fig = plt.figure( figsize = [8, 6] )
+ax = fig.add_subplot( 111 )
+
+ax.yaxis.set_major_formatter(format_mm)
+ax.xaxis.set_major_formatter(format_mm)
+
+ax.set_xlabel( 'x (mm)')
+ax.set_ylabel( 'y (mm)')
+
+ax.set_xlim( -2000, 2000 )
+ax.set_ylim( -2000, 2000 )
+plotted = ax.scatter( pmt_1500um_test_asym['x'], pmt_1500um_test_asym['y'], c = pmt_1500um_test_asym['xspline'], 
+        cmap = plt.get_cmap('algcm'), marker = 's', s = 125, edgecolor = 'None',
+        vmin = -2500, vmax = 2500)
+
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( 'output/ratios/test1500_comp_x.pdf', format = 'pdf', transparent = 'true' )
+cbar.remove()
+plt.cla()
+
+##################################################
+ax.yaxis.set_major_formatter(format_mm)
+ax.xaxis.set_major_formatter(format_mm)
+
+ax.set_xlabel( 'x (mm)')
+ax.set_ylabel( 'y (mm)')
+
+ax.set_xlim( -2000, 2000 )
+ax.set_ylim( -2000, 2000 )
+
+pmt_1500um_raw_asym.reset_index( inplace = True )
+
+plotted = ax.scatter( pmt_1500um_raw_asym['x'], pmt_1500um_raw_asym['y'], c = pmt_1500um_raw_asym['lr'],
+        cmap = plt.get_cmap('algcm'), marker = 's', s = 125, edgecolor = 'None',
+        vmin = -0.2, vmax = 0.2)
+
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( 'output/ratios/test1500_rawasym_x.pdf', format = 'pdf', transparent = 'true' )
+cbar.remove()
+plt.cla()
+
+##################################################
+
+ax.yaxis.set_major_formatter(format_mm)
+ax.xaxis.set_major_formatter(format_mm)
+
+ax.set_xlabel( 'x (mm)')
+ax.set_ylabel( 'y (mm)')
+
+ax.set_xlim( -2000, 2000 )
+ax.set_ylim( -2000, 2000 )
+
+
+widecm = blind_colormap( 'Spectral', 'widecm', 0.2 )
+plt.register_cmap( cmap = widecm )
+
+plotted = ax.scatter( pmt_1500um_test_asym['x'], pmt_1500um_test_asym['y'], c = pmt_1500um_test_asym['dx'], 
+        cmap = plt.get_cmap('widecm'), marker = 's', s = 125, edgecolor = 'None',
+        vmin = -600, vmax = 600)
+
+cbar = plt.colorbar( mappable = plotted, format = format_mm )
+cbar.update_ticks()
+
+plt.savefig( 'output/ratios/delta.x.pdf', format = 'pdf', transparent = 'true' )
+
+cbar.remove()
 
 ##################################################
