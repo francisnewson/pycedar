@@ -29,7 +29,7 @@ print ( pos_blue_correction.head() )
 print( '\n' )
 
 print ('Loading PMT hit data:' )
-pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.csv.gz' ) )
+pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.42.csv.gz' ) )
 print( pmt_hit_data.head() )
 
 print( '\n' )

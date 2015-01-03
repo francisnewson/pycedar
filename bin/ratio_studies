@@ -2,13 +2,97 @@
 import pycedar
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from scipy.optimize import curve_fit
+from scipy.interpolate import UnivariateSpline
 import sys
 import gzip
 import math
 
+def get_splines( ds, coord, coord_range, asym, asym_err, s = 10 ):
+    level_coord = 'x' if coord == 'y' else 'y'
+    cds = ds.xs( 0, level = level_coord, axis = 0 )
+    fit_data = cds[slice(*coord_range)]
+    asym_spline = UnivariateSpline( fit_data.index.values, fit_data[asym], 
+            w = 1 / fit_data[asym_err], s = s )
+
+    coord_points = np.linspace( *coord_range, num = 200 )
+    spline_values = asym_spline( coord_points )
+    spline_data = pd.DataFrame( { coord : coord_points, asym : spline_values } ).sort( asym )
+    inverted_spline = UnivariateSpline( spline_data[asym], spline_data[coord], s = 4 )
+
+    return asym_spline, inverted_spline
+
 print ('Loading PMT hit data:' )
-pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.csv.gz' ) )
+pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.42.csv.gz' ) )
 
-print( pmt_hit_data)
+#Octant corrections
+octant_hits = pmt_hit_data.loc[20000, 0, 0].groupby( pycedar.get_octant ).sum()
+corrections = octant_hits.mean() / octant_hits
+corr_stat_err = pycedar.get_octant_corr_stat_err( octant_hits )
 
-#pmt_1mm_data = pmt_hit_data[pmt_hit_data[
+print( corrections )
+
+#Select 1mm diaphragm
+pmt_1500um_octants = pmt_hit_data.loc[1500,:,:].groupby( pycedar.get_octant, axis = 1).sum()
+#apply corrections
+pmt_1500um_corr_octants  = pmt_1500um_octants  * corrections
+#calculate asymmetries
+pmt_1500um_asym = pmt_1500um_octants.apply( pycedar.oct_asym, axis = 1  )
+
+##################################################
+
+x_spline, x_inverted_spline = get_splines( pmt_1500um_asym, 'x', (-2000, 2000 ), 'lr', 'lr_err', 10 )
+y_spline, y_inverted_spline = get_splines( pmt_1500um_asym, 'y', (-2000, 2000 ), 'ud', 'ud_err', 10 )
+
+#set x to zero to plot y dependence
+asym_y = pmt_1500um_asym.xs( 0, level = 'x', axis = 0 ) 
+
+#set x to zero to plot y dependence
+asym_x = pmt_1500um_asym.xs( 0, level = 'y', axis = 0 )
+
+##################################################
+
+position = np.linspace(-2000,2000,100) # 100 linearly spaced numbers
+
+
+fig = plt.figure( figsize = [8, 6] )
+ax = fig.add_subplot( 111 )
+
+ax.grid( True )
+ax.set_ylim( -1, 1 )
+ax.set_xlim( -3000, 3000 )
+
+ax.errorbar( asym_x.index.values, asym_x['lr'] , yerr = asym_x['lr_err'], fmt='o')
+ax.plot( position, x_spline( position) )
+plt.savefig( 'output/ratios/asym1500.pdf', format = 'pdf', transparent = 'true' )
+
+plt.clf()
+
+fig = plt.figure( figsize = [6, 6] )
+ax = fig.add_subplot( 111 )
+
+ax.grid( True )
+ax.set_ylim( -0.05, 0.05 )
+ax.set_xlim( -1000, 1000 )
+
+ax.errorbar( asym_x.index.values, asym_x['lr'] , yerr = asym_x['lr_err'], fmt='o')
+ax.plot( position, x_spline( position) )
+plt.savefig( 'output/ratios/asym1500_zoom.pdf', format = 'pdf', transparent = 'true' )
+
+plt.cla()
+
+ax.set_xlim( -0.05, 0.05 )
+ax.set_ylim( -2000, 2000 )
+ax.grid( True )
+ax.errorbar( asym_x['lr'] , asym_x.index.values, xerr = asym_x['lr_err'], fmt='o')
+asym_range = np.linspace( -0.1,0.1, 200 )
+ax.plot( asym_range, x_inverted_spline( asym_range) )
+
+plt.savefig( 'output/ratios/asym1500.inverted.pdf', format = 'pdf', transparent = 'true' )
+
+plt.clf()
+
+
+
+##################################################

@@ -41,7 +41,7 @@ ax.set_xlabel( 'Blue sensitivity correction' )
 plt.savefig( 'output/blue_corrections.pdf', format = 'pdf', transparent = 'true' )
 
 print ('Loading PMT hit data:' )
-pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.csv.gz' ) )
+pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.42.csv.gz' ) )
 
 print( 'Correcting PMT hit data:' )
 blue_corr_mod = 1
