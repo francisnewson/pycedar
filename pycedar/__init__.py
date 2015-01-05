@@ -5,3 +5,5 @@ from pmts import *
 from asym import *
 from cedar_corrections import *
 from spectra import *
+from chi2 import *
+from plotting import *

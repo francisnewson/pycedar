@@ -1,0 +1,151 @@
+#!/usr/bin/env python
+import pycedar
+import random
+import pandas as pd
+import math
+import numpy as np
+import sys
+import gzip
+import itertools
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import cProfile
+from matplotlib.ticker import FormatStrFormatter
+
+print( 'Loading templates')
+pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.42.csv.gz' ) )
+pmt_test_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.52.csv.gz' ) )
+pmt_1500_templates = pmt_hit_data.loc[1500, :]
+pmt_1500_test_templates = pmt_hit_data.loc[1500, :]
+
+##################################################
+
+print( 'Creating oct chi2 aligner' )
+chi2_octants = pycedar.get_chi2_octants()
+octant_dict = pycedar.group_dict( chi2_octants )
+#print( chi2_octants )
+
+chi2_oct_aligner = pycedar.Chi2Aligner(
+        pmt_1500_templates.loc[ (slice(-2000,2000), slice(-2000,2000)), :],
+        octant_dict )
+
+print( 'Cacheing template sums')
+chi2_oct_aligner.update_template_cache()
+
+pmt_test_data_indi = pmt_test_data.loc[1500, 800, 800 ]
+
+print( 'Computing alignment')
+cProfile.run( 'chi2_oct_aligner.compute_alignment( chi2_oct_aligner.extract_group_totals( pmt_test_data_indi ) )', 'chi2_stats' )
+octant_result = chi2_oct_aligner.last_result
+
+##################################################
+
+print( 'Creating sixths chi2 aligner' )
+chi2_sixths = pycedar.get_chi2_sixths()
+#print( chi2_sixths )
+sixths_dict = pycedar.group_dict( chi2_sixths )
+
+
+chi2_sixths_aligner = pycedar.Chi2Aligner(
+        pmt_1500_templates.loc[ (slice(-2000,2000), slice(-2000,2000)), :],
+        sixths_dict )
+
+print( 'Cacheing template sums')
+chi2_sixths_aligner.update_template_cache()
+
+pmt_test_data_indi = pmt_test_data.loc[1500, 800, 800 ]
+
+print( 'Computing alignment')
+sixths_result = chi2_sixths_aligner.compute_alignment( 
+        chi2_sixths_aligner.extract_group_totals(pmt_test_data_indi ) )
+
+print( sixths_result.loc[sixths_result['chi2'].idxmin()]['x':'y']) 
+
+chi2_sixths_aligner_test = pycedar.Chi2Aligner(
+        pmt_1500_test_templates.loc[ (slice(-2000,2000), slice(-2000,2000)), :],
+        sixths_dict )
+
+chi2_sixths_aligner_test.update_template_cache()
+
+sixths_test_results_x = []
+sixths_test_results_y = []
+
+print( 'Testing chi2 alignment' )
+for pos, dt in chi2_sixths_aligner_test.template_group_totals.iteritems():
+    chi2_fit = chi2_sixths_aligner.compute_alignment( dt )
+    best_fit = chi2_fit.loc[ chi2_fit['chi2'].idxmin()]
+    dx = pos[0] - best_fit.x
+    dy = pos[1]- best_fit.y
+    sixths_test_results_x.append( dx )
+    sixths_test_results_y.append( dy )
+
+sixth_test_res_x = pd.Series( sixths_test_results_x , 
+        index = chi2_sixths_aligner_test.template_group_totals.items )
+
+sixth_test_res_y = pd.Series( sixths_test_results_y , 
+        index = chi2_sixths_aligner_test.template_group_totals.items )
+
+
+sixths_x_plot = sixth_test_res_x.reset_index()
+sixths_x_plot.columns = ['x', 'y' , 'dx']
+print ( sixths_x_plot )
+
+sixths_x_plot.to_pickle('data/chi2_test1500_x.pck' )
+
+sixths_y_plot = sixth_test_res_y.reset_index()
+sixths_y_plot.columns = ['x', 'y' , 'dy']
+sixths_y_plot.to_pickle('data/chi2_test1500_y.pck' )
+
+
+##################################################
+
+print( 'Plotting')
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+def set_up_ax( ax ):
+    ax.grid( True )
+    ax.set_xlim( -2400, 2400 )
+    ax.set_ylim( -2400, 2400 )
+
+    ax.yaxis.set_major_formatter(pycedar.format_mm)
+    ax.xaxis.set_major_formatter(pycedar.format_mm)
+
+    ax.set_xlabel( 'x (mm)')
+    ax.set_ylabel( 'y (mm)')
+
+def plot_chi2(ax, x, y, z):
+    set_up_ax( ax )
+    plotted = ax.scatter( x, y , c = z,
+            marker = 's', s = 175, edgecolor = 'None' )
+    cbar = plt.colorbar( mappable = plotted, format = FormatStrFormatter( '%2.1f' ) )
+    return plotted, cbar
+
+
+plotted, cbar = plot_chi2( ax, octant_result['x'], octant_result['y'], np.log( octant_result['chi2']) )
+plt.savefig( 'output/chi2/octants_1500.pdf', format = 'pdf', transparent = 'true')
+
+cbar.remove()
+plt.cla()
+
+plotted, cbar = plot_chi2( ax, sixths_result['x'], sixths_result['y'], np.log( sixths_result['chi2']) )
+plt.savefig( 'output/chi2/sixths_1500.pdf', format = 'pdf', transparent = 'true')
+
+cbar.remove()
+plt.cla()
+
+widecm = pycedar.blind_colormap( 'Spectral', 'widecm', 0.1 )
+plt.register_cmap( cmap = widecm )
+
+set_up_ax( ax )
+plotted = ax.scatter( sixths_x_plot['x'], sixths_x_plot['y'], c = sixths_x_plot['dx'], 
+        cmap = plt.get_cmap('widecm'), marker = 's', s = 125, edgecolor = 'None',
+        vmin = -400, vmax = 400)
+
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mm ) 
+
+plt.savefig( 'output/chi2/sixths_1500_test.pdf', format = 'pdf', transparent = 'true')
+
+
+sys.exit(0)

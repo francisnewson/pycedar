@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+import pycedar
+import gzip
+import matplotlib.pyplot as plt
+import os
+import os.path
+
+def extract_pos( dt ):
+    pos = dt.reset_index()[['r','x','y']]
+    assert( pos['r'].unique().size == 1 )
+    pos = pos[['x','y']]
+    return pos
+
+def plot_pos( ax, pos, param_dict = {}):
+    axmax = max( pos['x'].max(), pos['y'].max() ) + 150
+    axmin = min( pos['x'].min(), pos['y'].min() ) - 150
+    ax.set_xlim( axmin, axmax )
+    ax.set_ylim( axmin, axmax )
+
+    ax.yaxis.set_major_formatter(pycedar.format_mm)
+    ax.xaxis.set_major_formatter(pycedar.format_mm)
+    ax.set_xlabel( 'x (mm)')
+    ax.set_ylabel( 'y (mm)')
+
+    ax.grid( 'on' )
+    print( param_dict )
+
+    return ax.scatter( pos['x'], pos['y'], marker = 's', s = 10,  edgecolor = 'None', **param_dict )
+
+fig = plt.figure( figsize = [8, 8] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+
+data_dir = 'data/align_csv'
+data_files =  os.listdir( data_dir) 
+
+for df in data_files:
+    color = 'Black'
+    if 'kaon' in df:
+        color = 'DarkSlateGray'
+        #color = 'Blue'
+    if 'proton' in df:
+        color = 'Crimson'
+        #color = 'Red'
+    if 'pip' in df:
+        color = 'MediumSeaGreen'
+        #color = 'Green'
+
+    print( df )
+    data_path = os.path.join( data_dir, df )
+    pmt_hit_data = pycedar.load_templates_csv( gzip.open( data_path) )
+    plot_pos( ax, extract_pos( pmt_hit_data ) , {'color' : color } )
+    output_name = df.replace( 'csv.gz', 'pdf' )
+    plt.savefig( os.path.join( 'output/check_data', output_name ) , format = 'pdf', transparent = 'true')
+    plt.cla()
+

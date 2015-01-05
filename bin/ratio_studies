@@ -25,27 +25,6 @@ def get_splines( ds, coord, coord_range, asym, asym_err, s = 10 ):
 
     return asym_spline, inverted_spline
 
-def blind_colormap( source, name, blind):
-    brbgcmp = plt.get_cmap( source )
-    brbgdata = brbgcmp._segmentdata.copy()
-
-    for colour in ['red', 'green', 'blue' ]:
-        #jiggery
-        colorlist = brbgdata[colour]
-        clist = [  list( i ) for i in colorlist  ]
-        clist[5][1] = clist[4][2]
-        clist[5][2] = clist[6][1]
-        clist.insert( 6, clist[5] )
-        clist[5] = [ 0.5 - 0.5*blind, clist[5][1], 0.7 ]
-        clist[6] = [ 0.5 + 0.5*blind, 0.7 , clist[6][2]  ]
-        colorlist = [ tuple( i ) for i in clist ]
-        brbgdata[colour] = colorlist
-
-    newcm = mpl.colors.LinearSegmentedColormap( name , brbgdata )
-    return newcm
-
-
-
 print ('Loading PMT hit data:' )
 pmt_hit_data = pycedar.load_templates_csv( gzip.open( 'data/alignment_data.42.csv.gz' ) )
 
@@ -114,11 +93,6 @@ pmt_1500um_test_asym['dy'] = pmt_1500um_test_asym['yspline'] - pmt_1500um_test_a
 #
 ##################################################
 
-def len_mm( x, pos ):
-    return '{0:1.1f}'.format( x*1e-3)
-
-format_mm = FuncFormatter( len_mm )
-
 print ('Plotting splines')
 #SPLINES
 fig = plt.figure( figsize = [8, 6] )
@@ -145,7 +119,7 @@ ax.grid( True )
 ax.set_ylim( -0.6, 0.6 )
 ax.set_ylabel( 'L/R Asymmetry' )
 ax.set_xlim( -4000, 4000 )
-ax.xaxis.set_major_formatter(format_mm)
+ax.xaxis.set_major_formatter(pycedar.format_mm)
 ax.set_xlabel( 'x (mm)')
 
 ax.errorbar( asym_x.index.values, asym_x['lr'] , yerr = asym_x['lr_err'], fmt='--o', 
@@ -160,7 +134,7 @@ plt.cla()
 ax.set_xlim( -0.10, 0.10 )
 ax.set_ylim( -2500, 2500 )
 ax.set_xlabel( 'L\R Asymmetry' )
-ax.yaxis.set_major_formatter(format_mm)
+ax.yaxis.set_major_formatter(pycedar.format_mm)
 ax.set_ylabel( 'x (mm)')
 ax.grid( True )
 ax.errorbar( asym_x['lr'] , asym_x.index.values, xerr = asym_x['lr_err'], fmt='o')
@@ -181,14 +155,14 @@ plt.clf()
 #
 
 
-algcm = blind_colormap( 'BrBG', 'algcm', 0.03 )
+algcm = pycedar.blind_colormap( 'BrBG', 'algcm', 0.03 )
 plt.register_cmap( cmap = algcm )
 
 fig = plt.figure( figsize = [8, 6] )
 ax = fig.add_subplot( 111 )
 
-ax.yaxis.set_major_formatter(format_mm)
-ax.xaxis.set_major_formatter(format_mm)
+ax.yaxis.set_major_formatter(pycedar.format_mm)
+ax.xaxis.set_major_formatter(pycedar.format_mm)
 
 ax.set_xlabel( 'x (mm)')
 ax.set_ylabel( 'y (mm)')
@@ -205,8 +179,8 @@ cbar.remove()
 plt.cla()
 
 ##################################################
-ax.yaxis.set_major_formatter(format_mm)
-ax.xaxis.set_major_formatter(format_mm)
+ax.yaxis.set_major_formatter(pycedar.format_mm)
+ax.xaxis.set_major_formatter(pycedar.format_mm)
 
 ax.set_xlabel( 'x (mm)')
 ax.set_ylabel( 'y (mm)')
@@ -227,8 +201,8 @@ plt.cla()
 
 ##################################################
 
-ax.yaxis.set_major_formatter(format_mm)
-ax.xaxis.set_major_formatter(format_mm)
+ax.yaxis.set_major_formatter(pycedar.format_mm)
+ax.xaxis.set_major_formatter(pycedar.format_mm)
 
 ax.set_xlabel( 'x (mm)')
 ax.set_ylabel( 'y (mm)')
@@ -237,14 +211,14 @@ ax.set_xlim( -2000, 2000 )
 ax.set_ylim( -2000, 2000 )
 
 
-widecm = blind_colormap( 'Spectral', 'widecm', 0.2 )
+widecm = pycedar.blind_colormap( 'Spectral', 'widecm', 0.2 )
 plt.register_cmap( cmap = widecm )
 
 plotted = ax.scatter( pmt_1500um_test_asym['x'], pmt_1500um_test_asym['y'], c = pmt_1500um_test_asym['dx'], 
         cmap = plt.get_cmap('widecm'), marker = 's', s = 125, edgecolor = 'None',
         vmin = -600, vmax = 600)
 
-cbar = plt.colorbar( mappable = plotted, format = format_mm )
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mm )
 cbar.update_ticks()
 
 plt.savefig( 'output/ratios/delta.x.pdf', format = 'pdf', transparent = 'true' )

@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+import pycedar
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from matplotlib.ticker import FormatStrFormatter
+
+sixths_x_plot = pd.io.pickle.read_pickle( 'data/chi2_test1500_x.pck' )
+sixths_y_plot = pd.io.pickle.read_pickle( 'data/chi2_test1500_y.pck' )
+print( sixths_y_plot )
+
+print( 'Plotting')
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+def set_up_ax( ax ):
+    ax.grid( True )
+    ax.set_xlim( -2400, 2400 )
+    ax.set_ylim( -2400, 2400 )
+
+    ax.yaxis.set_major_formatter(pycedar.format_mm)
+    ax.xaxis.set_major_formatter(pycedar.format_mm)
+
+    ax.set_xlabel( 'x (mm)')
+    ax.set_ylabel( 'y (mm)')
+
+widecm = pycedar.blind_colormap( 'Spectral', 'widecm', 0.1 )
+plt.register_cmap( cmap = widecm )
+
+set_up_ax( ax )
+plotted = ax.scatter( sixths_x_plot['x'], sixths_x_plot['y'], c = sixths_x_plot['dx'], 
+        cmap = plt.get_cmap('widecm'), marker = 's', s = 175, edgecolor = 'None',
+        vmin = -400, vmax = 400)
+
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mm ) 
+
+plt.savefig( 'output/chi2/sixths_1500_test_x.pdf', format = 'pdf', transparent = 'true')
+
+cbar.remove()
+plt.cla()
+
+set_up_ax( ax )
+plotted = ax.scatter( sixths_y_plot['x'], sixths_y_plot['y'], c = sixths_y_plot['dy'], 
+        cmap = plt.get_cmap('widecm'), marker = 's', s = 175, edgecolor = 'None',
+        vmin = -400, vmax = 400)
+
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mm ) 
+plt.savefig( 'output/chi2/sixths_1500_test_y.pdf', format = 'pdf', transparent = 'true')
