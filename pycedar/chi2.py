@@ -3,6 +3,13 @@ from operator import add
 import numpy as np
 import pandas as pd
 import itertools
+from scipy import interpolate
+from scipy import optimize
+
+class pxy:
+    def __init__( self,x, y, ):
+        self.x = x
+        self.y = y
 
 def group_dict( group_list ):
     forward_dict =  enumerate( group_list ) 
@@ -31,29 +38,46 @@ def extract_group_totals( data, groups, errfun = default_errfun ):
     return data_totals
 
 class Chi2Aligner:
-    def __init__(self,  templates = None, groups = None, errfun = default_errfun):
+    def __init__(self,  templates = None, groups = None, errfun = default_errfun, interpolate = False):
         self.templates = templates
-        self.groups = groups
+        self.groups = group_dict( groups )
         self.errfun = errfun
+        self.interpolate = False
+
+    def set_templates( self, templates ):
+        self.templates = templates
 
     def extract_group_totals(self, data_set ):
         return extract_group_totals( data_set, self.groups, self.errfun )
 
+    def prepare_data_sets( self, data_sets ):
+        prepared_dict = {}
+        #for k in self.templates.index:
+        for k in data_sets.index:
+            prepared_dict[k] = self.extract_group_totals( data_sets.loc[k] )
+
+        return pd.Panel( prepared_dict )
+
+    def looper( self, data_sets):
+        return data_sets.iteritems()
+
+    def index( self, data_sets):
+        return data_sets.items
+
     def update_template_cache( self ):
-        mydict = {}
-        for k in self.templates.index:
-            mydict[k] = self.extract_group_totals( self.templates.loc[k] )
-        self.template_group_totals = pd.Panel( mydict)
-        print( self.template_group_totals )
+        self.template_group_totals = self.prepare_data_sets( self.templates )
+
+    def prepare_templates( self ):
+        self.update_template_cache()
 
     def loop_alignment( self, dt ):
         results = []
         #print( 'Start loop' )
-        dtsum = float( dt['hits'].sum() )
+        dtsum = float( sum(dt['hits'].values ) ) 
         dthits = dt['hits'].values
         dtsqerr = dt['sqerr'].values
         for k,mc in self.template_group_totals.iteritems():
-            ratio = dtsum / mc['hits'].sum()
+            ratio = dtsum / float( sum ( mc['hits'].values ) )
             mchits = mc['hits'].values
             mcsqerr = mc['sqerr'].values
             chi2_terms = chi2_term( dthits, dtsqerr, mchits, mcsqerr, ratio )
@@ -61,14 +85,25 @@ class Chi2Aligner:
         #print( 'Stop loop' )
         return  pd.Series( results, index = self.template_group_totals.items)
 
-    def panel_alignment( self, test_data ):
-        dt = self.extract_group_totals( test_data )
-        return self.template_group_totals.apply( lambda x: df_chi2( dt, x ), axis = 'major' )
-
     def compute_alignment( self, test_data ):
         self.last_result = self.loop_alignment( test_data ).reset_index()
         self.last_result.columns = [ 'x', 'y', 'chi2' ]
+        self.best_fit = self.last_result.loc[ self.last_result['chi2'].idxmin() ]
+        if self.interpolate:
+            self.interpolate_best_xy()
+
         return self.last_result
+
+    def interpolate_best_xy( self ):
+        fd = self.last_result
+        f = interpolate.interp2d( fd['x'].values, fd['y'].values, fd['chi2'].values, kind = 'cubic' )
+        ff = lambda x : f( x[0], x[1] )
+        starting_point = ( self.best_fit.x, self.best_fit.y )
+        res = optimize.minimize( ff,  starting_point, (), method = 'BFGS' ) 
+        self.best_fit = pxy( res.x[0], res.x[1] )
+
+    def best_xy( self ):
+        return ( self.best_fit.x, self.best_fit.y )
 
 #  ____
 # / ___|_ __ ___  _   _ _ __  ___

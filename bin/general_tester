@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+import pycedar
+import gzip
+import pandas as pd
+import logging
+import matplotlib.pyplot as plt
+import cProfile
+
+def test_aligner( aligner, template_data, test_data ):
+    logging.info('Set templates' )
+    aligner.set_templates( template_data )
+
+    logging.info('Prepare templates' )
+    aligner.prepare_templates()
+
+    logging.info('Prepare datasets' )
+    prepared_test_data  = aligner.prepare_data_sets( test_data )
+
+    x_results = []
+    y_results = []
+    dx_results = []
+    dy_results = []
+
+    logging.info('Loop datasets' )
+    count = 0
+    try:
+        for pos, dt in aligner.looper(prepared_test_data):
+            aligner.compute_alignment( dt )
+            best_xy = aligner.best_xy()
+            x_results.append( best_xy[0] )
+            y_results.append( best_xy[1] )
+            dx_results.append( pos[0] - best_xy[0] )
+            dy_results.append( pos[1] - best_xy[1] )
+            count += 1
+    except KeyboardInterrupt:
+        pass
+
+    prepared_index = aligner.index( prepared_test_data )[0:count]
+
+    result = pd.DataFrame( {
+        'best_x' : pd.Series( x_results, index = prepared_index ),
+        'best_y' : pd.Series( y_results, index = prepared_index),
+        'dx' : pd.Series( dx_results, index = prepared_index),
+        'dy' : pd.Series( dy_results, index = prepared_index) })
+
+    result.reset_index( inplace = True )
+    result.columns = ['x', 'y', 'best_x', 'best_y', 'dx', 'dy' ]
+    return result
+
+def set_up_ax( ax, myrange ):
+    ax.grid( True )
+    ax.set_xlim( -myrange, myrange )
+    ax.set_ylim( -myrange, myrange )
+
+    ax.yaxis.set_major_formatter(pycedar.format_mm)
+    ax.xaxis.set_major_formatter(pycedar.format_mm)
+
+    ax.set_xlabel( 'x (mm)')
+    ax.set_ylabel( 'y (mm)')
+
+widecm = pycedar.blind_colormap( 'BrBG', 'widecm', 0.1 )
+plt.register_cmap( cmap = widecm )
+
+widedcm = pycedar.blind_colormap( 'Spectral', 'widedcm', 0.1 )
+plt.register_cmap( cmap = widedcm )
+
+def plot_test_results( ax, test_results, column, cmap , dictargs ):
+    return ax.scatter( test_results['x'], test_results['y'], c = test_results[column],
+            cmap = plt.get_cmap( cmap ), marker = 's', edgecolor = 'None' , **dictargs )
+
+logging.basicConfig( level = logging.DEBUG )
+
+#CONFIG
+myslice = 1000
+mydiaphragm = 1000
+spline_smoothing = 80
+plot_range = 1200
+
+#Load template and test datasets
+data_set_string = 'data/align_csv/kaonp_1710_{d}_{s}.csv.gz'
+all_pmt_template_data = pycedar.load_templates_csv( 
+        gzip.open( data_set_string.format( d = mydiaphragm, s = 42 ) ) ).loc[mydiaphragm, :, : ]
+
+all_pmt_test_data = pycedar.load_templates_csv( 
+        gzip.open( data_set_string.format( d = mydiaphragm, s = 52 ) ) ).loc[mydiaphragm, : :]
+
+#Restrict to my slice
+pmt_template_data = all_pmt_template_data.loc[(slice(-(myslice+200),myslice+200), slice(-(myslice+200),myslice+200)), :]
+pmt_test_data = all_pmt_test_data.loc[(slice(-myslice,myslice), slice(-myslice,myslice)), :]
+
+#Load wide dataset for asym corrections
+wide_data = pycedar.load_templates_csv( 
+        gzip.open( 'data/align_csv/kaonp_1710_20000_42.csv.gz' ) ).loc[20000, :, : ] 
+
+chi2_aligner = pycedar.Chi2Aligner(groups = pycedar.get_chi2_sixths(), errfun = pycedar.default_errfun )
+asym_aligner = pycedar.AsymAligner( wideset = wide_data, spline_range = myslice, spline_smoothing = spline_smoothing )
+
+cProfile.run( 'chi2_results = test_aligner( chi2_aligner, pmt_template_data, pmt_test_data )', 'log/test_chi2_stats' )
+cProfile.run( 'asym_results = test_aligner( asym_aligner, pmt_template_data, pmt_test_data )', 'log/test_asym_stats' )
+
+
+print( 'Plotting')
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+asym_aligner.plot_xinvspline( ax )
+
+ax.set_ylim( -myslice-200, myslice +200)
+plt.savefig( 'output/asym/xspline.pdf', format = 'pdf', transparent = 'true' )
+plt.cla()
+
+set_up_ax( ax, plot_range+200 )
+plotted = plot_test_results( ax, chi2_results, 'best_x',  'widecm', { 'vmin' : -myslice - 200, 'vmax' : myslice+200, 's' : 25  } )
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mm )
+set_up_ax( ax, plot_range+200 )
+plt.savefig( 'output/chi2/test_x.pdf', format = 'pdf', transparent = 'true' )
+cbar.remove()
+ax.cla()
+
+plotted = plot_test_results( ax, chi2_results, 'dx', 'widedcm' , { 'vmin' : - 500, 'vmax' : 500, 's' : 25  } )
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mm )
+set_up_ax( ax, plot_range+200 )
+plt.savefig( 'output/chi2/test_dx.pdf', format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+
+set_up_ax( ax, plot_range+200 )
+plotted = plot_test_results( ax, asym_results, 'best_x',  'widecm', { 'vmin' : -myslice - 200, 'vmax' : myslice+200, 's' : 25  } )
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mm )
+set_up_ax( ax, plot_range+200 )
+plt.savefig( 'output/asym/test_x.pdf', format = 'pdf', transparent = 'true' )
+cbar.remove()
+ax.cla()
+
+plotted = plot_test_results( ax, asym_results, 'dx', 'widedcm' , { 'vmin' : - 500, 'vmax' : 500, 's' : 25  } )
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mm )
+set_up_ax( ax, plot_range+200 )
+plt.savefig( 'output/asym/test_dx.pdf', format = 'pdf', transparent = 'true' )
+cbar.remove()

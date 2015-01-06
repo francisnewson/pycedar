@@ -111,12 +111,12 @@ plt.savefig( 'output/ratios/asym1500.pdf', format = 'pdf', transparent = 'true' 
 plt.clf() ########################################
 
 #ZOOMED SPLINES
-fig = plt.figure( figsize = [6, 6] )
+fig = plt.figure( figsize = [8, 6] )
 fig.set_tight_layout(True)
 ax = fig.add_subplot( 111 )
 
 ax.grid( True )
-ax.set_ylim( -0.6, 0.6 )
+ax.set_ylim( -0.8, 0.8 )
 ax.set_ylabel( 'L/R Asymmetry' )
 ax.set_xlim( -4000, 4000 )
 ax.xaxis.set_major_formatter(pycedar.format_mm)
@@ -128,7 +128,11 @@ ax.errorbar( asym_x.index.values, asym_x['lr'] , yerr = asym_x['lr_err'], fmt='-
 #ax.plot( position, x_spline( position) )
 plt.savefig( 'output/ratios/asym1500_zoom.pdf', format = 'pdf', transparent = 'true' )
 
-plt.cla()
+plt.clf()
+
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
 
 #INVERTED SPLINES
 ax.set_xlim( -0.10, 0.10 )

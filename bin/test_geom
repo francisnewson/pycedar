@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+
+import pycedar
+import gzip
+import matplotlib.pyplot as plt
+from matplotlib.patches import PathPatch
+from matplotlib.patches import Path
+import cProfile
+import pandas as pd
+
+
+ga = pycedar.GeomAligner()
+
+fig = plt.figure( figsize = [6, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+ax.grid( 'on' )
+
+#xs = [ pmt.x for pmt in cf.proj.values() ]
+#ys = [ pmt.y for pmt in cf.pos_map.values() ]
+
+ax.scatter( ga.proj_map['x'], ga.proj_map['y'], edgecolor = 'None' )
+
+plt.savefig( 'output/geom/posmap.pdf', format = 'pdf', transparent = 'true')
+
+data_set_string = 'data/align_csv/kaonp_1710_{d}_{s}.csv.gz'
+
+ds52 = pycedar.load_templates_csv(
+        gzip.open( data_set_string.format( d = 1500, s = 52 ) ) ).loc[1500, :, : ] 
+
+ds42 = pycedar.load_templates_csv(
+        gzip.open( data_set_string.format( d = 1500, s = 42 ) ) ).loc[1500, :, : ] 
+
+fitxy = pd.io.pickle.read_pickle('cache/geo.pck')
+
+prep = ga.prepare_data_sets( ds42.loc[(slice( -300, -100), slice(300, 400 )), :] )
+#ga.set_templates( ds52.loc[(slice( -2000, 2000 ), slice( -2000, 2000 ) ), :] )
+#cProfile.run( 'ga.prepare_templates()', 'log/geo_prep')
+
+ga.set_template_fits( fitxy)
+ga.prepare_templates()
+res = ga.compute_alignment( prep.loc[-200, 350] )
+best_xy = ga.best_xy()
+
+print( best_xy)
+
+plt.clf()
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+ax.grid( 'on' )
+ax.set_xlim( -500 , 500 )
+ax.set_ylim( -500 , 500 )
+for coord in res:
+    for seg in coord:
+        ax.add_artist(PathPatch( Path(seg), fill = False ) )
+plt.savefig( 'output/geom/testx.pdf', format = 'pdf', transparent = 'true')
