@@ -43,7 +43,7 @@ def circle_fit( hits, projmap ):
     hit_map['hits'] = hits
     res = optimize.minimize(  geom_chi2, (0,0, 300), (hit_map,), method = 'Powell' )
 
-    return pd.Series( dict( fitx = res.x[0] , fity = res.x[1] ) )
+    return pd.Series( dict( fitx = res.x[0] , fity = res.x[1], fitr = res.x[2] ) )
 
 class GeomAligner:
     def __init__(self):
@@ -52,7 +52,7 @@ class GeomAligner:
 
         self.pos_map['sector']  = self.pos_map.index / 100
         self.proj_map  = self.pos_map.apply( project, axis = 1 )
-        self.templates = None
+        self.templates = pd.DataFrame()
         self.template_fits = pd.DataFrame()
 
     def set_templates( self, templates ):
@@ -65,6 +65,12 @@ class GeomAligner:
         result = data_sets.apply( lambda x : circle_fit(x, self.proj_map ), axis = 1 )
         return result
 
+    def looper( self, data_sets):
+        return data_sets.iterrows()
+
+    def index( self, data_sets):
+        return data_sets.index
+
     def get_contours( self, df ):
         X = df.columns.values
         Y = df.index.values
@@ -73,7 +79,7 @@ class GeomAligner:
         return cntr.Cntr( x, y, Z )
 
     def prepare_templates( self ):
-        if self.templates and not self.template_fits.empty:
+        if not self.templates.empty and self.template_fits.empty:
             self.template_fits = self.prepare_data_sets( self.templates ).reset_index()
             self.template_fits.to_pickle( 'cache/geo.pck')
 
@@ -126,5 +132,4 @@ class GeomAligner:
 
 
     def best_xy( self ):
-        return self.best_xys[0]
-
+        return list(reversed(self.best_xys[0]))

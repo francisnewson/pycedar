@@ -94,9 +94,11 @@ wide_data = pycedar.load_templates_csv(
 
 chi2_aligner = pycedar.Chi2Aligner(groups = pycedar.get_chi2_sixths(), errfun = pycedar.default_errfun )
 asym_aligner = pycedar.AsymAligner( wideset = wide_data, spline_range = myslice, spline_smoothing = spline_smoothing )
+geom_aligner = pycedar.GeomAligner()
 
-cProfile.run( 'chi2_results = test_aligner( chi2_aligner, pmt_template_data, pmt_test_data )', 'log/test_chi2_stats' )
-cProfile.run( 'asym_results = test_aligner( asym_aligner, pmt_template_data, pmt_test_data )', 'log/test_asym_stats' )
+#cProfile.run( 'chi2_results = pycedar.test_aligner( chi2_aligner, pmt_template_data, pmt_test_data )', 'log/test_chi2_stats' )
+#cProfile.run( 'asym_results = pycedar.test_aligner( asym_aligner, pmt_template_data, pmt_test_data )', 'log/test_asym_stats' )
+cProfile.run( 'geom_results = pycedar.test_aligner( geom_aligner, pmt_template_data, pmt_test_data )', 'log/test_asym_stats' )
 
 
 print( 'Plotting')
@@ -137,4 +139,10 @@ plotted = plot_test_results( ax, asym_results, 'dx', 'widedcm' , { 'vmin' : - 50
 cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mm )
 set_up_ax( ax, plot_range+200 )
 plt.savefig( 'output/asym/test_dx.pdf', format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+plotted = plot_test_results( ax, geom_results, 'dx', 'widedcm' , { 'vmin' : - 500, 'vmax' : 500, 's' : 25  } )
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mm )
+set_up_ax( ax, plot_range+200 )
+plt.savefig( 'output/geom/test_dx.pdf', format = 'pdf', transparent = 'true' )
 cbar.remove()

@@ -11,18 +11,6 @@ import pandas as pd
 
 ga = pycedar.GeomAligner()
 
-fig = plt.figure( figsize = [6, 6] )
-fig.set_tight_layout(True)
-ax = fig.add_subplot( 111 )
-ax.grid( 'on' )
-
-#xs = [ pmt.x for pmt in cf.proj.values() ]
-#ys = [ pmt.y for pmt in cf.pos_map.values() ]
-
-ax.scatter( ga.proj_map['x'], ga.proj_map['y'], edgecolor = 'None' )
-
-plt.savefig( 'output/geom/posmap.pdf', format = 'pdf', transparent = 'true')
-
 data_set_string = 'data/align_csv/kaonp_1710_{d}_{s}.csv.gz'
 
 ds52 = pycedar.load_templates_csv(
@@ -33,24 +21,69 @@ ds42 = pycedar.load_templates_csv(
 
 fitxy = pd.io.pickle.read_pickle('cache/geo.pck')
 
-prep = ga.prepare_data_sets( ds42.loc[(slice( -300, -100), slice(300, 400 )), :] )
+prep = ga.prepare_data_sets( ds42.loc[(slice( -300, -100), slice(800, 1000 )), :] )
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+ax.grid( 'on' )
+
+#xs = [ pmt.x for pmt in cf.proj.values() ]
+#ys = [ pmt.y for pmt in cf.pos_map.values() ]
+
+hits = ds42.loc[-200, 900 ]
+fit = pycedar.circle_fit( hits, ga.proj_map )
+print ( fit )
+
+ax.set_xlabel( 'x (cm)' )
+ax.set_ylabel( 'y (cm)' )
+ax.set_aspect( 'equal' )
+
+plotted = ax.scatter( ga.proj_map['x'], ga.proj_map['y'], c =  hits, edgecolor = 'None' )
+cbar = plt.colorbar( mappable = plotted )
+fit_circle=plt.Circle((fit.fitx,fit.fity),fit.fitr,color='Black', fill = False)
+line = ax.add_artist( fit_circle )
+plt.setp( line , linestyle = 'dashed' )
+plt.savefig( 'output/geom/posmap.pdf', format = 'pdf', transparent = 'true')
+
+cbar.remove()
+
 #ga.set_templates( ds52.loc[(slice( -2000, 2000 ), slice( -2000, 2000 ) ), :] )
 #cProfile.run( 'ga.prepare_templates()', 'log/geo_prep')
 
 ga.set_template_fits( fitxy)
 ga.prepare_templates()
-res = ga.compute_alignment( prep.loc[-200, 350] )
+res = ga.compute_alignment( prep.loc[-200, 900] )
 best_xy = ga.best_xy()
 
 print( best_xy)
 
 plt.clf()
+fig.set_size_inches( 8, 8 )
 fig.set_tight_layout(True)
 ax = fig.add_subplot( 111 )
 ax.grid( 'on' )
-ax.set_xlim( -500 , 500 )
-ax.set_ylim( -500 , 500 )
+ax.set_xlim( -1500 , 1500 )
+ax.set_ylim( -1500 , 1500 )
+ax.set_xlabel( 'x (mm)' )
+ax.set_ylabel( 'y (mm)' )
+ax.yaxis.set_major_formatter(pycedar.format_mm)
+ax.xaxis.set_major_formatter(pycedar.format_mm)
+
 for coord in res:
     for seg in coord:
         ax.add_artist(PathPatch( Path(seg), fill = False ) )
+ax.scatter( [best_xy[1]], [best_xy[0]],  edgecolor = 'Black', marker = 's', s = 100, facecolor = 'none' )
 plt.savefig( 'output/geom/testx.pdf', format = 'pdf', transparent = 'true')
+
+ax.cla()
+ax.grid( 'on')
+ax.set_xlabel( 'x (mm)' )
+ax.set_ylabel( 'Fit X' )
+
+ax.xaxis.set_major_formatter(pycedar.format_mm)
+
+fitx = ga.template_fits.pivot( 'x', 'y', 'fitx' ).interpolate().bfill().ffill()
+fx = fitx[0]
+ax.plot( fx.index.values, fitx[0], '-o', lw = 2 )
+
+plt.savefig( 'output/geom/testfitx.pdf', format = 'pdf', transparent = 'true')
