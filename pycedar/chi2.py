@@ -85,6 +85,20 @@ class Chi2Aligner:
         #print( 'Stop loop' )
         return  pd.Series( results, index = self.template_group_totals.items)
 
+    def interpolate_best_xy( self ):
+        fd = self.last_result
+        #f = interpolate.interp2d( fd['x'].values, fd['y'].values, fd['chi2'].values, kind = 'cubic' )
+        intfd = fd.pivot( 'x','y', 'chi2' ).interpolate().bfill().ffill()
+        f = interpolate.RectBivariateSpline( intfd.index.values, intfd.columns.values, intfd.values )
+        ff = lambda x : f( x[0], x[1] )
+        def ff(x):
+            res = f( x[0], x[1] )
+            return res
+        starting_point = np.array( [self.best_fit.x, self.best_fit.y] )
+
+        res = optimize.minimize( ff,  starting_point, (), method = 'BFGS', tol = 1 ) 
+        self.best_fit = pxy( res.x[0], res.x[1] )
+
     def compute_alignment( self, test_data ):
         self.last_result = self.loop_alignment( test_data ).reset_index()
         self.last_result.columns = [ 'x', 'y', 'chi2' ]
@@ -93,14 +107,6 @@ class Chi2Aligner:
             self.interpolate_best_xy()
 
         return self.last_result
-
-    def interpolate_best_xy( self ):
-        fd = self.last_result
-        f = interpolate.interp2d( fd['x'].values, fd['y'].values, fd['chi2'].values, kind = 'cubic' )
-        ff = lambda x : f( x[0], x[1] )
-        starting_point = ( self.best_fit.x, self.best_fit.y )
-        res = optimize.minimize( ff,  starting_point, (), method = 'BFGS' ) 
-        self.best_fit = pxy( res.x[0], res.x[1] )
 
     def best_xy( self ):
         return ( self.best_fit.x, self.best_fit.y )

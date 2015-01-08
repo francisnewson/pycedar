@@ -1,0 +1,9 @@
+font.family         : serif
+font.style          : normal
+font.variant        : normal
+font.weight         : medium
+font.stretch        : normal
+
+font.serif          : Charter
+
+text.usetex        : true

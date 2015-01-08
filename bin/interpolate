@@ -27,7 +27,8 @@ all_pmt_template_data = pycedar.load_templates_csv(
         gzip.open( data_set_string.format( d = mydiaphragm, s = 42 ) ) ).loc[mydiaphragm, :, : ]
 
 #Restrict to my slice
-pmt_template_data = all_pmt_template_data.loc[(slice(-(myslice+400),myslice+400), slice(-(myslice+400),myslice+400)), :]
+pmt_template_data = all_pmt_template_data.loc[
+        (slice(-(myslice+400),myslice+400), slice(-(myslice+400),myslice+400)), :]
 coarse_template_data =  pmt_template_data.loc[myindex] 
 
 #Load test datasets
@@ -36,69 +37,64 @@ all_pmt_test_data = pycedar.load_templates_csv(
 
 pmt_test_data = all_pmt_test_data.loc[(slice(-myslice,myslice), slice(-myslice,myslice)), :]
 
-#Run tests
+#Setup chi2 aligner
 chi2_aligner = pycedar.Chi2Aligner(groups = pycedar.get_chi2_sixths(), errfun = pycedar.default_errfun )
-
 chi2_aligner.set_templates( coarse_template_data )
 chi2_aligner.prepare_templates()
+
+#invidiual test
 indi_test = chi2_aligner.extract_group_totals( pmt_test_data.loc[-450, 650 ] )
-result = chi2_aligner.compute_alignment( indi_test )
+indi_result = chi2_aligner.compute_alignment( indi_test )
 best = chi2_aligner.best_xy()
 
-f = interpolate.interp2d( result['x'], result['y'], result['chi2'], kind = 'cubic' )
-
+#interpolated chi2 map
+f_chi2 = interpolate.interp2d( indi_result['x'], indi_result['y'], indi_result['chi2'], kind = 'cubic' )
 full_x = pd.Series( np.arange( best[0] - 200, best[0] + 200,  5 ), name = 'x' )
 full_y = pd.Series( np.arange( best[1] - 200, best[1] + 200,  5 ), name = 'y' )
-full_z = f( full_x, full_y )
+full_z = f_chi2( full_x, full_y )
+interp_full = pd.DataFrame( pd.DataFrame( full_z, index = full_x ,  columns = full_y   ).stack() ).reset_index()
+interp_full.columns = ['x','y','chi2']
 
-full = pd.DataFrame( pd.DataFrame( full_z, index = full_x ,  columns = full_y   ).stack() ).reset_index()
-full.columns = ['x','y','chi2']
-
-#print( full )
 print( best )
-print(full.loc[ full['chi2'].idxmin() ] )
+print(interp_full.loc[ interp_full['chi2'].idxmin() ] )
 
-chi2_aligner.interpolate = True
 new_result = chi2_aligner.compute_alignment( indi_test )
 print( chi2_aligner.best_xy() )
 
-#result.set_index( ['x', 'y'], inplace = True )
-#print ( result )
-#print( pmt_test_data.index )
-#interpolated_result = result.reindex( pmt_test_data.index, inplace = True ).interpolate( method = 'spline' )
+#Full test
+cProfile.run( 'chi2_results = pycedar.test_aligner( chi2_aligner, coarse_template_data, pmt_test_data )', 
+'log/test_course_chi2_stats' )
 
-#result.interpolate( method = 'values', 
+#set interpolation
+chi2_aligner.interpolate = True
 
+#full test
+cProfile.run( 'interp_chi2_results = pycedar.test_aligner( chi2_aligner, coarse_template_data, pmt_test_data )', 
 
-
-#cProfile.run( 'chi2_results = pycedar.test_aligner( chi2_aligner, coarse_template_data, pmt_test_data )', 
-#'log/test_course_chi2_stats' )
-
+#Set up figure
 print( 'Plotting')
 fig = plt.figure( figsize = [8, 6] )
 fig.set_tight_layout(True)
 ax = fig.add_subplot( 111 )
 
-plotted = ax.scatter( full['x'], full['y'], c = full['chi2'], marker = 's', edgecolor = 'None' )
+#plot interpolated chi2 grid
+plotted = ax.scatter( interp_full['x'], interp_full['y'], c = interp_full['chi2'], 
+        marker = 's', edgecolor = 'None' )
 cbar = plt.colorbar( mappable = plotted )
 plt.savefig( 'output/chi2/interp.pdf', format = 'pdf', transparent = 'true' )
 cbar.remove()
 ax.cla()
 
-plotted = ax.scatter( result['x'], result['y'], c = result['chi2'], marker = 's', edgecolor = 'None' )
+#plot non interpolated chi2 grid
+plotted = ax.scatter( indi_result['x'], indi_result['y'], c = indi_result['chi2'],
+        marker = 's', edgecolor = 'None' )
 cbar = plt.colorbar( mappable = plotted )
 plt.savefig( 'output/chi2/raw_interp.pdf', format = 'pdf', transparent = 'true' )
 
+cbar.remove()
+ax.cla()
 
-
-sys.exit()
-
-plotted =  ax.scatter( chi2_results['x'], chi2_results['y'], c = chi2_results['dx'],
-        cmap = pycedar.blind_colormap( 'Spectral', 'widecm', 0.1 ),
-        marker = 's', edgecolor = 'None' )
-
-cbar = plt.colorbar( mappable = plotted )
-
+#plot full test ( no interpolation )
 ax.set_xlim( -1000, 1000 )
 ax.set_ylim( -1000, 1000 )
 
@@ -108,4 +104,32 @@ ax.xaxis.set_major_formatter(pycedar.format_mm)
 ax.set_xlabel( 'x (mm)')
 ax.set_ylabel( 'y (mm)')
 
+plotted =  ax.scatter( chi2_results['x'], chi2_results['y'], c = chi2_results['dx'],
+        cmap = pycedar.blind_colormap( 'Spectral', 'widecm', 0.1 ),
+        marker = 's', edgecolor = 'None', vmin = -200, vmax = 200 ) 
+
+cbar = plt.colorbar( mappable = plotted )
 plt.savefig( 'output/chi2/coarse.pdf', format = 'pdf', transparent = 'true' )
+
+cbar.remove()
+ax.cla()
+
+
+ax.set_xlim( -1000, 1000 )
+ax.set_ylim( -1000, 1000 )
+
+ax.yaxis.set_major_formatter(pycedar.format_mm)
+ax.xaxis.set_major_formatter(pycedar.format_mm)
+
+ax.set_xlabel( 'x (mm)')
+ax.set_ylabel( 'y (mm)')
+'log/test_fine_chi2_stats' )
+
+plotted =  ax.scatter( 
+        interp_chi2_results['x'], interp_chi2_results['y'], c = interp_chi2_results['dx'],
+        cmap = pycedar.blind_colormap( 'Spectral', 'widecm', 0.1 ),
+        marker = 's', edgecolor = 'None', vmin = -200, vmax = 200 )
+
+cbar = plt.colorbar( mappable = plotted )
+
+plt.savefig( 'output/chi2/fine.pdf', format = 'pdf', transparent = 'true' )

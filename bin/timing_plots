@@ -1,0 +1,111 @@
+#!/usr/bin/env python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.special import erf
+
+def gaussian(x, mu, sig):
+        return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
+def gausexp(x, l, m, s ):
+    erfpart = 1  - erf ( ( m + l*s*s -x ) / (np.sqrt(2)*s ) )
+    exppart = np.exp( l / 2 * ( 2 * m + l *s*s -2 * x ) )
+    return erfpart * exppart
+
+def get_regE( fv ):
+    def f( x ):
+        return fv['ARegE'] * gaussian( x, fv['mRegE'], fv['sRegE'] )
+    return f
+
+def get_reg( fv ):
+    def f( x ):
+        return fv['AReg'] * gaussian( x, fv['mReg'], fv['sReg'] )
+    return f
+
+def get_regT( fv ):
+    def f( x ):
+        return fv['ARegT'] * gausexp( x, fv['lRegT'], fv['mRegT'], fv['sRegT'] )
+    return f
+
+def get_late( fv ):
+    def f( x ):
+        return fv['ALateE'] * gaussian( x, fv['mLateE'], fv['sLateE'] )
+    return f
+
+def get_funcs( fv ):
+    fregE = get_regE( fv )
+    fregT = get_regT( fv )
+    freg = get_reg( fv )
+    flate = get_late( fv )
+    return { 'Early' : fregE, 'Regular' : freg, 'Delayed' : fregT, 'Scattered' : flate }
+
+def get_func( fv ):
+    funcs = get_funcs( fv )
+    def f( x ):
+        return sum( fn( x) for fn in funcs.values() )
+    return f
+
+timing_data = pd.read_csv( 'inter/h2012timing.dat', names = ['t_low', 'N'],
+        delim_whitespace = True )
+
+func_values = {}
+
+with open( 'inter/h2012stats.dat') as f:
+    for line in f:
+        if ( line.strip() ):
+            name, val = line.strip().split()
+            func_values[name] = float( val )
+
+print( func_values )
+
+
+fig = plt.figure( figsize = [6, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+ax.grid( 'on')
+
+ax.set_xlim( -1.0, 2 )
+ax.set_ylim( 30, 3e5 )
+ax.set_xlabel( '$\Delta T$ (ns)' )
+
+ax.hist( timing_data['t_low'].values, weights = timing_data['N'].values, bins = len(timing_data['t_low']),
+        log = True, histtype = 'step', color = 'Black', label = 'Data' )
+
+f_total = get_func( func_values )
+
+funcs = get_funcs( func_values )
+tval = np.linspace( -2, 3 , 500 )
+
+ax.set_color_cycle( ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3',]) 
+
+
+for name in ['Early', 'Regular', 'Delayed', 'Scattered' ]:
+    ax.plot( tval, funcs[name]( tval ) , lw = 2, label = name)
+
+handles, labels = ax.get_legend_handles_labels()
+
+plt.legend( handles, labels , loc = 'upper right')
+
+plt.savefig( 'output/timing2012.pdf', format = 'pdf',
+        transparent = 'true')
+
+plt.cla()
+
+ax.grid( 'on')
+
+ax.set_xlim( -1.0, 2 )
+ax.set_ylim( 30, 3e5 )
+ax.set_xlabel( '$\Delta T$ (ns)' )
+
+ax.hist( timing_data['t_low'].values, weights = timing_data['N'].values, bins = len(timing_data['t_low']),
+        log = True, histtype = 'step', color = 'Black', label = 'Data' )
+
+ax.plot( tval, f_total(tval), lw = 2, color = 'Red', label = 'Total' )
+
+
+handles, labels = ax.get_legend_handles_labels()
+
+plt.legend( handles, labels , loc = 'upper right')
+
+plt.savefig( 'output/timing2012total.pdf', format = 'pdf',
+        transparent = 'true')
