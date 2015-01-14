@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
+from scipy.special import erf
+import pycedar
+import glob
+import sys
+import os.path
+import re
+import string
+
+
+def parse( basename ):
+    m = re.search( r'(?P<part>.*)_x_(?P<x>.*)_y_(?P<y>.*)_d_(?P<r>.*)\..*\.dat', basename )
+    trans = string.maketrans( 'pm', '+-' )
+
+    def n( key ):
+        return int(m.group( key).translate( trans ))
+
+    return m.group('part'), n('r'), n('x'), n('y')
+
+def get_dfs( globstring):
+    alldfs = []
+    for filename in glob.glob( globstring ):
+        base = os.path.basename( filename )
+        part, r, x, y = parse( base )
+        df = pd.read_csv( filename, delim_whitespace = True )
+        df.insert( 0 ,'y',  y )
+        df.insert( 0 ,'x',  x )
+        df.insert( 0 ,'r',  r )
+        alldfs.append( df )
+
+    result =  pd.concat( alldfs )
+    return result.set_index( [ 'r', 'x', 'y'] )
+
+
+#load all eff files
+print( 'Globbing' )
+
+
+pi_effs = get_dfs( 'data/effs/pip*.effs.dat' )
+k_effs = get_dfs( 'data/effs/kaonp*.effs.dat' )
+
+k_ineffs = get_dfs( 'data/effs/kaonp*.ineffs.dat' )
+pi_ineffs = get_dfs( 'data/effs/pip*.ineffs.dat' )
+
+print( 'Done globbing' )
+
+#do kaon inefficiency vs alignment
+kaon_alignment = k_ineffs[k_ineffs['NPhotons'] == 18].loc[ 1500, :, 0]
+pion_alignment = pi_effs[pi_effs['NPhotons'] == 18].loc[ 1500, :, 0]
+print( kaon_alignment )
+print( pion_alignment )
+
+#do basic ineff plot
+dt = pd.read_csv( 'data/ineffs.dat' , delim_whitespace = True )
+
+fig = plt.figure( figsize = [6, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+ax.grid( 'on')
+
+ax.set_color_cycle( ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3',]) 
+ax.plot( dt['NPhotons'], dt['5'], '-o', marker = 's', ms = 10,  mec = 'None',  label = '5 Fold' )
+ax.plot( dt['NPhotons'], dt['6'], '-o', marker = '^', ms = 10,  mec = 'None',  label = '6 Fold' )
+ax.plot( dt['NPhotons'], dt['7'], '-o', marker = 'o', ms = 10,  mec = 'None',  label = '7 Fold' )
+ax.plot( dt['NPhotons'], dt['8'], '-o', marker = 'v', ms = 10,  mec = 'None',  label = '8 Fold' )
+
+ax.plot([12, 26], [0.05, 0.05], color='k', linestyle='--', linewidth=2, label = 'Target')
+
+ax.set_xlabel( 'Average number of photons detected per kaon' )
+ax.set_ylabel( 'Inefficiency' )
+
+ax.set_xlim( [14, 24 ] )
+
+plt.yscale('log')
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles[::-1], labels[::-1] , loc = 'lower left')
+
+plt.savefig( 'output/ineffs.pdf', format = 'pdf',
+        transparent = 'true')
+
+def efferr( eff ):
+    return 1/ np.sqrt(10000) * np.sqrt( eff * ( 1 - eff ) )
+
+ax.cla()
+ax.errorbar( kaon_alignment.index, kaon_alignment['6'], yerr = efferr( kaon_alignment['6']),
+        fmt = '-o', mec = 'None', color = 'k' )
+ax.plot([0, 800], [0.05, 0.05], color='k', linestyle='--', linewidth=2, label = 'Target')
+ax.set_xlim( [0, 400 ] )
+ax.set_ylim( [0.03, 0.06] )
+ax.grid( 'on')
+
+ax.xaxis.set_major_formatter(pycedar.format_mmm)
+ax.yaxis.set_major_formatter( FormatStrFormatter('%0.2f' ) )
+ax.set_xlabel( 'CEDAR Misalignment in $x$ (mm)' )
+ax.set_ylabel( '6 Fold Innefficiency' )
+
+plt.savefig( 'output/misalignineffs.pdf', format = 'pdf', transparent = 'true' )

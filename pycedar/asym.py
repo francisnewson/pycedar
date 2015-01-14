@@ -46,17 +46,19 @@ def octant_corrections( ds ):
     return hits.mean() / hits
 
 
-def get_splinefit_data( ds, coord, coord_range ):
+def get_splinefit_data( ds, coord, coord_range, step = 200 ):
     level_coord = 'x' if coord == 'y' else 'y'
     cds = ds.xs( 0, level = level_coord, axis = 0 )
     fit_data = cds[slice(*coord_range)]
-    return fit_data
+    return fit_data.loc[
+            list(range(coord_range[0],coord_range[1], step ) )]
 
 class SplineInfo:
     pass
 
-def get_splines( ds, coord, coord_range, asym, asym_err, s = 10 ):
-    fit_data = get_splinefit_data( ds, coord, coord_range )
+def get_splines( ds, coord, coord_range, asym, asym_err, s = 10, step = 200):
+    fit_data = get_splinefit_data( ds, coord, coord_range, step )
+    #print( fit_data )
     asym_spline = UnivariateSpline( fit_data.index.values, fit_data[asym], 
             w = 1 / fit_data[asym_err], s = s )
 
@@ -78,6 +80,7 @@ class AsymAligner:
         self.corrections = octant_corrections( wideset )
         self.spline_range = spline_range
         self.spline_smoothing = spline_smoothing
+        self.spline_step = 200
 
     def set_templates( self, templates ):
         self.templates = templates
@@ -85,6 +88,7 @@ class AsymAligner:
     def prepare_data_sets( self, data_sets ):
         hits = data_sets.groupby( get_octant, axis = 1 ).sum()
         corr_hits =  hits * self.corrections
+        #corr_hits = hits
         result =  corr_hits.apply( oct_asym, axis = 1 )
         return result
 
@@ -97,9 +101,9 @@ class AsymAligner:
     def prepare_templates( self ):
         self.template_group_totals = self.prepare_data_sets( self.templates)
         self.xspi =  get_splines( self.template_group_totals,
-                'x', ( -self.spline_range, self.spline_range), 'lr', 'lr_err', self.spline_smoothing )
+                'x', ( -self.spline_range, self.spline_range), 'lr', 'lr_err', self.spline_smoothing, self.spline_step )
         self.yspi = get_splines( self.template_group_totals,
-                'y', ( -self.spline_range, self.spline_range), 'ud', 'ud_err', self.spline_smoothing )
+                'y', ( -self.spline_range, self.spline_range), 'ud', 'ud_err', self.spline_smoothing, self.spline_step )
 
     def compute_alignment( self, test_data ):
         self.last_x = self.xspi.invspline( test_data['lr'] )
@@ -109,12 +113,13 @@ class AsymAligner:
         return ( self.last_x, self.last_y )
 
     def plot_xinvspline(self, ax ):
-        ax.set_xlabel( 'L\R Asymmetry' )
+        ax.set_xlabel( 'L/R Asymmetry' )
         ax.yaxis.set_major_formatter(plotting.format_mm)
         ax.set_ylabel( 'x (mm)')
         ax.grid( True )
         ax.autoscale()
-        ax.set_xlim( -0.1, 0.1 )
+        ax.set_xlim( -0.05, 0.05 )
+        ax.set_ylim( -2000, 2000 )
 
         #print( self.xspi.fit_data )
         #print( self.xspi.spline_data )
@@ -122,6 +127,24 @@ class AsymAligner:
         ax.errorbar( self.xspi.fit_data['lr'] , self.xspi.fit_data.index,
                 xerr = self.xspi.fit_data['lr_err'], fmt='o', color = 'Blue' )
         ax.plot( self.xspi.spline_data['lr'] , self.xspi.spline_data['x'], ls = '-', lw = 2, color = 'Green' )
-        asym_range = np.linspace( -0.1,0.1, 200 )
+        asym_range = np.linspace( -0.2,0.2, 200 )
         ax.plot( asym_range, self.xspi.invspline( asym_range), ls = '--', color = 'Red' )
+
+    def plot_yinvspline(self, ax ):
+        ax.set_xlabel( 'U/D Asymmetry' )
+        ax.yaxis.set_major_formatter(plotting.format_mm)
+        ax.set_ylabel( 'y (mm)')
+        ax.grid( True )
+        ax.autoscale()
+        ax.set_xlim( -0.05, 0.05 )
+        ax.set_ylim( -2000, 2000 )
+
+        #print( self.xspi.fit_data )
+        #print( self.xspi.spline_data )
+
+        ax.errorbar( self.yspi.fit_data['ud'] , self.yspi.fit_data.index,
+                xerr = self.yspi.fit_data['ud_err'], fmt='o', color = 'Blue' )
+        ax.plot( self.yspi.spline_data['ud'] , self.yspi.spline_data['y'], ls = '-', lw = 2, color = 'Green' )
+        asym_range = np.linspace( -0.2,0.2, 200 )
+        ax.plot( asym_range, self.yspi.invspline( asym_range), ls = '--', color = 'Red' )
 

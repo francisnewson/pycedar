@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 from pandas.computation import expressions as expr
 import sys
 
+regen = True
+
 expr.set_use_numexpr(False )
 
 logging.basicConfig( level = logging.DEBUG )
@@ -62,14 +64,24 @@ new_result = chi2_aligner.compute_alignment( indi_test )
 print( chi2_aligner.best_xy() )
 
 #Full test
-cProfile.run( 'chi2_results = pycedar.test_aligner( chi2_aligner, coarse_template_data, pmt_test_data )', 
-'log/test_course_chi2_stats' )
+if regen:
+    cProfile.run( 'chi2_results = pycedar.test_aligner( chi2_aligner, coarse_template_data, pmt_test_data )', 
+    'log/test_coarse_chi2_stats' )
 
-#set interpolation
-chi2_aligner.interpolate = True
+    #set interpolation
+    chi2_aligner.interpolate = True
 
-#full test
-cProfile.run( 'interp_chi2_results = pycedar.test_aligner( chi2_aligner, coarse_template_data, pmt_test_data )', 
+    #full test
+    cProfile.run( 'interp_chi2_results = pycedar.test_aligner( chi2_aligner, coarse_template_data, pmt_test_data )', 
+    'log/test_fine_chi2_stats' )
+
+    chi2_results.to_pickle( 'cache/chi2_raw.pck' )
+    interp_chi2_results.to_pickle( 'cache/interp_chi2_raw.pck' )
+else:
+    chi_results = pd.io.pickle.read_pickle( 'cache/chi2_raw.pck' )
+    interp_chi_results = pd.io.pickle.read_pickle( 'cache/interp_chi2_raw.pck' )
+
+
 
 #Set up figure
 print( 'Plotting')
@@ -108,7 +120,7 @@ plotted =  ax.scatter( chi2_results['x'], chi2_results['y'], c = chi2_results['d
         cmap = pycedar.blind_colormap( 'Spectral', 'widecm', 0.1 ),
         marker = 's', edgecolor = 'None', vmin = -200, vmax = 200 ) 
 
-cbar = plt.colorbar( mappable = plotted )
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mmm )
 plt.savefig( 'output/chi2/coarse.pdf', format = 'pdf', transparent = 'true' )
 
 cbar.remove()
@@ -123,13 +135,12 @@ ax.xaxis.set_major_formatter(pycedar.format_mm)
 
 ax.set_xlabel( 'x (mm)')
 ax.set_ylabel( 'y (mm)')
-'log/test_fine_chi2_stats' )
 
 plotted =  ax.scatter( 
         interp_chi2_results['x'], interp_chi2_results['y'], c = interp_chi2_results['dx'],
         cmap = pycedar.blind_colormap( 'Spectral', 'widecm', 0.1 ),
         marker = 's', edgecolor = 'None', vmin = -200, vmax = 200 )
 
-cbar = plt.colorbar( mappable = plotted )
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mmm )
 
 plt.savefig( 'output/chi2/fine.pdf', format = 'pdf', transparent = 'true' )

@@ -3,6 +3,7 @@ from operator import add
 import numpy as np
 import pandas as pd
 import itertools
+import functools
 from scipy import interpolate
 from scipy import optimize
 
@@ -29,7 +30,7 @@ def df_chi2( dt, mc ):
     mcsum = float( mc['hits'].sum() )
     ratio = dtsum / mcsum
     chi2_terms = chi2_term( dt['hits'], dt['sqerr'], mc['hits'], mc['sqerr'], ratio )
-    return sum( chi2_terms )
+    return float(sum( chi2_terms ))
 
 def extract_group_totals( data, groups, errfun = default_errfun ):
     data_sqerrs = errfun( data )**2
@@ -85,6 +86,13 @@ class Chi2Aligner:
         #print( 'Stop loop' )
         return  pd.Series( results, index = self.template_group_totals.items)
 
+    def apply_alignment( self, dt ):
+        def chi2_fun( mc ):
+            return df_chi2(dt, mc )
+        result = self.template_group_totals.apply( chi2_fun, axis =[1,2] )
+        return ( result )
+
+
     def interpolate_best_xy( self ):
         fd = self.last_result
         #f = interpolate.interp2d( fd['x'].values, fd['y'].values, fd['chi2'].values, kind = 'cubic' )
@@ -100,7 +108,7 @@ class Chi2Aligner:
         self.best_fit = pxy( res.x[0], res.x[1] )
 
     def compute_alignment( self, test_data ):
-        self.last_result = self.loop_alignment( test_data ).reset_index()
+        self.last_result = self.apply_alignment( test_data ).reset_index()
         self.last_result.columns = [ 'x', 'y', 'chi2' ]
         self.best_fit = self.last_result.loc[ self.last_result['chi2'].idxmin() ]
         if self.interpolate:

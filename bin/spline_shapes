@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+import pycedar
+import gzip
+import pandas as pd
+import logging
+import matplotlib.pyplot as plt
+import cProfile
+import sys
+import numpy as np
+
+#Load template and test datasets
+data_set_string = 'data/align_csv/kaonp_1710_{d}_{s}.csv.gz'
+
+wide_data = pycedar.load_templates_csv( 
+        gzip.open( 'data/align_csv/kaonp_1710_20000_42.csv.gz' ), ignore_pmts = [176] ).loc[20000, :, : ] 
+
+for dw in [ 800, 1000, 1200, 1500 ]:
+    all_pmt_template_data = pycedar.load_templates_csv( 
+            gzip.open( data_set_string.format( d = dw, s = 52 ) ) )
+    template_data = all_pmt_template_data.loc[dw, :, :]
+    asym_aligner = pycedar.AsymAligner( wideset = wide_data, 
+            spline_range = 1000, spline_smoothing = 80 )
+
+    asym_aligner.spline_step = 50
+    asym_aligner.set_templates( template_data )
+    asym_aligner.prepare_templates()
+
+
+    fig = plt.figure( figsize = [6, 6] )
+    fig.set_tight_layout(True)
+    ax = fig.add_subplot( 111 )
+
+
+    myrange = 1500
+
+    ax.grid( True )
+    asym_aligner.plot_xinvspline( ax )
+    plt.savefig( 'output/spline_shapes/d{0}_x.pdf'.format( dw ), format = 'pdf' , transparent = 'true' )
+    ax.cla()
+    ax.grid( True )
+    asym_aligner.plot_yinvspline( ax )
+    plt.savefig( 'output/spline_shapes/d{0}_y.pdf'.format( dw ), format = 'pdf' , transparent = 'true' )

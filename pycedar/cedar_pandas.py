@@ -1,6 +1,6 @@
 import pandas as pd
 
-def load_templates_csv( f ):
+def load_templates_csv( f , ignore_pmts = None, index_col = None):
     """Returns a pandas dataframe, extracted from
     a csv file.
 
@@ -12,10 +12,18 @@ def load_templates_csv( f ):
     :rtype: pandas.DataFrame
 
     """
-    hit_data =  pd.read_csv( f, delim_whitespace = True, index_col = [ 'r', 'x', 'y', ] )
+    if not index_col:
+        index_col = ['r', 'x', 'y' ]
+
+    hit_data =  pd.read_csv( f, delim_whitespace = True, index_col = index_col )
+
 
     #ensure position names are integers
     hit_data.columns = map( int, hit_data.columns.values )
+
+    if ignore_pmts:
+        for pmt in ignore_pmts:
+            hit_data[pmt] = 0
 
     return hit_data
 

@@ -24,4 +24,12 @@ def blind_colormap( source, name, blind):
 def len_mm( x, pos ):
     return '{0:1.1f}'.format( x*1e-3)
 
+def len_mmm( x, pos ):
+    return '{0:1.2f}'.format( x*1e-3)
+
 format_mm = FuncFormatter( len_mm )
+
+format_mmm = FuncFormatter( len_mmm )
+
+def plot_dataset( ax, dt ):
+    return ax.bar( dt.index, dt.values)

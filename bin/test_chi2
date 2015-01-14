@@ -23,11 +23,10 @@ pmt_1500_test_templates = pmt_hit_data.loc[1500, :]
 print( 'Creating oct chi2 aligner' )
 chi2_octants = pycedar.get_chi2_octants()
 octant_dict = pycedar.group_dict( chi2_octants )
-#print( chi2_octants )
 
 chi2_oct_aligner = pycedar.Chi2Aligner(
         pmt_1500_templates.loc[ (slice(-2000,2000), slice(-2000,2000)), :],
-        octant_dict )
+        chi2_octants )
 
 print( 'Cacheing template sums')
 chi2_oct_aligner.update_template_cache()
@@ -48,7 +47,7 @@ sixths_dict = pycedar.group_dict( chi2_sixths )
 
 chi2_sixths_aligner = pycedar.Chi2Aligner(
         pmt_1500_templates.loc[ (slice(-2000,2000), slice(-2000,2000)), :],
-        sixths_dict )
+        chi2_sixths )
 
 print( 'Cacheing template sums')
 chi2_sixths_aligner.update_template_cache()
@@ -63,7 +62,7 @@ print( sixths_result.loc[sixths_result['chi2'].idxmin()]['x':'y'])
 
 chi2_sixths_aligner_test = pycedar.Chi2Aligner(
         pmt_1500_test_templates.loc[ (slice(-2000,2000), slice(-2000,2000)), :],
-        sixths_dict )
+        chi2_sixths )
 
 chi2_sixths_aligner_test.update_template_cache()
 

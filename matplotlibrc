@@ -3,7 +3,7 @@ font.style          : normal
 font.variant        : normal
 font.weight         : medium
 font.stretch        : normal
+axes.labelsize      : large 
 
-font.serif          : Charter
-
-text.usetex        : true
+#font.serif          : Charter
+#text.usetex        : true
