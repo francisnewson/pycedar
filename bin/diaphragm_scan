@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+import pycedar
+import gzip
+import pandas as pd
+import numpy as np
+import logging
+import cProfile
+import matplotlib.pyplot as plt
+import sys
+
+data_set_string = 'data/align_csv/kaonp_1710_{d}_{s}.csv.gz'
+
+pmt_template_data_800 = pycedar.load_templates_csv( 
+        gzip.open( data_set_string.format( d = 800, s = 42 ) ) ).loc[800, :, : ]
+
+pmt_test_data_800 = pycedar.load_templates_csv( 
+        gzip.open( data_set_string.format( d = 800, s = 52 ) ) ).loc[800, : :]
+
+pmt_list = pmt_test_data_800.columns
+
+#apply pmt fluctuations
+sigma = 0.15
+fluctuations = pd.Series( sigma*np.random.randn(len(pmt_list) ) + 1, index = pmt_list )
+pmt_test_fluctuated_data_800 = pmt_test_data_800 * fluctuations 
+
+
+#Load wide dataset for asym corrections
+wide_data = pycedar.load_templates_csv( 
+        gzip.open( 'data/align_csv/kaonp_1710_20000_42.csv.gz' ) ).loc[20000, :, : ] 
+
+#test chi2 at 1.2mm
+chi2_aligner = pycedar.Chi2Aligner( groups = pycedar.get_chi2_sixths(), 
+        errfun = pycedar.default_errfun )
+
+#cProfile.run( 'chi2_test_results = pycedar.test_aligner( chi2_aligner, pmt_template_data_800, pmt_test_data_800 )', 
+#'log/diaphragm_stats' )
+#chi2_test_results.to_pickle( 'cache/align_test/kaon_raw_chi2_800.pck' )
+
+#cProfile.run( 'fluc_chi2_test_results = pycedar.test_aligner( chi2_aligner, pmt_template_data_800, pmt_test_fluctuated_data_800 )', 
+#'log/diaphragm_stats' )
+#fluc_chi2_test_results.to_pickle( 'cache/align_test/kaon_fluc_chi2_800.pck' )
+
+
+#test asym at 1.2mm
+
+asym_aligner = pycedar.AsymAligner( wideset = wide_data, spline_range = 1200, spline_smoothing = 80 )
+
+asym_aligner.spline_step = 50
+
+#spline_templates = pycedar.load_templates_csv( 'data/align_csv/kaonp_1710_800_splines.csv.gz' ).loc[800, :, :]
+
+cProfile.run( 'asym_test_results = pycedar.test_aligner( asym_aligner, pmt_template_data_800, pmt_test_data_800 )', 'log/diaphragm_stats' )
+
+
+#asym_test_results.to_pickle( 'cache/align_test/kaon_raw_statspline_asym_800.pck' )
+
+fig = plt.figure( figsize = [6, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+asym_aligner.plot_xinvspline( ax )
+
+plt.savefig( 'output/asym/test_800_xplines.pdf' , 
+        format = 'pdf', transparent = 'true' )
+
+plt.cla()
+
+asym_aligner.plot_yinvspline( ax )
+
+plt.savefig( 'output/asym/test_800_yplines.pdf' , 
+        format = 'pdf', transparent = 'true' )

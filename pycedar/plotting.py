@@ -31,5 +31,5 @@ format_mm = FuncFormatter( len_mm )
 
 format_mmm = FuncFormatter( len_mmm )
 
-def plot_dataset( ax, dt ):
-    return ax.bar( dt.index, dt.values)
+def plot_dataset( ax, dt, **kwargs ):
+    return ax.bar( dt.index, dt.values, **kwargs)

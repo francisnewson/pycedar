@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+import pycedar
+import gzip
+import pandas as pd
+import logging
+import matplotlib.pyplot as plt
+import cProfile
+
+
+widecm = pycedar.blind_colormap( 'BrBG', 'widecm', 0.1 )
+plt.register_cmap( cmap = widecm )
+
+widedcm = pycedar.blind_colormap( 'Spectral', 'widedcm', 0.1 )
+plt.register_cmap( cmap = widedcm )
+
+def plot_test_results( ax, test_results, column, cmap , dictargs ):
+    return ax.scatter( test_results['x'], test_results['y'], c = test_results[column],
+            cmap = plt.get_cmap( cmap ), marker = 's', edgecolor = 'None' , **dictargs )
+
+chi2_test_results = pd.io.pickle.read_pickle( 'cache/align_test/kaon_fluc_chi2_800.pck' )
+#chi2_test_results = pd.io.pickle.read_pickle( 'cache/align_test/kaon_raw_asym_800.pck' )
+#chi2_test_results = pd.io.pickle.read_pickle( 'cache/align_test/kaon_raw_chi2_1200.pck' )
+
+print( 'Plotting')
+
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+ax.set_xlim( -1200 , 1200 )
+ax.set_ylim( -1200 , 1200 )
+
+ax.yaxis.set_major_formatter(pycedar.format_mm)
+ax.xaxis.set_major_formatter(pycedar.format_mm)
+
+ax.set_xlabel( 'x (mm)')
+ax.set_ylabel( 'y (mm)')
+
+ax.grid( 'on' )
+
+
+plotted = plot_test_results( ax, chi2_test_results, 'dx', 'widedcm' , { 'vmin' : - 200, 'vmax' : 200, 's' : 40  } )
+cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mmm )
+
+plt.savefig( 'output/chi2/test_fluc_800_dx.pdf', format = 'pdf', transparent = 'true' )
+#plt.savefig( 'output/asym/test_800_dx.pdf', format = 'pdf', transparent = 'true' )
+#plt.savefig( 'output/chi2/test_1200_dx.pdf', format = 'pdf', transparent = 'true' )
+
+cbar.remove()

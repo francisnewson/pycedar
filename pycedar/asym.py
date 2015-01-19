@@ -50,15 +50,16 @@ def get_splinefit_data( ds, coord, coord_range, step = 200 ):
     level_coord = 'x' if coord == 'y' else 'y'
     cds = ds.xs( 0, level = level_coord, axis = 0 )
     fit_data = cds[slice(*coord_range)]
-    return fit_data.loc[
+    spaced_data =  fit_data.loc[
             list(range(coord_range[0],coord_range[1], step ) )]
+    return spaced_data.dropna()
 
 class SplineInfo:
     pass
 
 def get_splines( ds, coord, coord_range, asym, asym_err, s = 10, step = 200):
     fit_data = get_splinefit_data( ds, coord, coord_range, step )
-    #print( fit_data )
+    print( fit_data )
     asym_spline = UnivariateSpline( fit_data.index.values, fit_data[asym], 
             w = 1 / fit_data[asym_err], s = s )
 
@@ -125,10 +126,10 @@ class AsymAligner:
         #print( self.xspi.spline_data )
 
         ax.errorbar( self.xspi.fit_data['lr'] , self.xspi.fit_data.index,
-                xerr = self.xspi.fit_data['lr_err'], fmt='o', color = 'Blue' )
-        ax.plot( self.xspi.spline_data['lr'] , self.xspi.spline_data['x'], ls = '-', lw = 2, color = 'Green' )
+                xerr = self.xspi.fit_data['lr_err'], fmt='o', color = 'Gray', mec = 'none' )
+        #ax.plot( self.xspi.spline_data['lr'] , self.xspi.spline_data['x'], ls = '-', lw = 2, color = '#a6d854' )
         asym_range = np.linspace( -0.2,0.2, 200 )
-        ax.plot( asym_range, self.xspi.invspline( asym_range), ls = '--', color = 'Red' )
+        ax.plot( asym_range, self.xspi.invspline( asym_range), ls = '--', lw = 2, color = '#e78ac3' )
 
     def plot_yinvspline(self, ax ):
         ax.set_xlabel( 'U/D Asymmetry' )
@@ -143,8 +144,8 @@ class AsymAligner:
         #print( self.xspi.spline_data )
 
         ax.errorbar( self.yspi.fit_data['ud'] , self.yspi.fit_data.index,
-                xerr = self.yspi.fit_data['ud_err'], fmt='o', color = 'Blue' )
-        ax.plot( self.yspi.spline_data['ud'] , self.yspi.spline_data['y'], ls = '-', lw = 2, color = 'Green' )
+                xerr = self.yspi.fit_data['ud_err'], fmt='o', color = 'Gray', mec = 'None' )
+        #ax.plot( self.yspi.spline_data['ud'] , self.yspi.spline_data['y'], ls = '-', lw = 2, color = '#a6d854' )
         asym_range = np.linspace( -0.2,0.2, 200 )
-        ax.plot( asym_range, self.yspi.invspline( asym_range), ls = '--', color = 'Red' )
+        ax.plot( asym_range, self.yspi.invspline( asym_range), ls = '--', lw = 2 , color = '#e78ac3' )
 

@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+import pycedar
+import gzip
+import pandas as pd
+import numpy as np
+import logging
+import cProfile
+import matplotlib.pyplot as plt
+import sys
+
+data_set_string = 'data/align_csv/kaonp_1710_{d}_{s}.csv.gz'
+
+pmt_template_data = pycedar.load_templates_csv( 
+        gzip.open( data_set_string.format( d = 1500, s = 42 ) ), ignore_pmts = [176] ).loc[1500, :, : ]
+
+pmt_test_data = pycedar.load_templates_csv( 
+        gzip.open( data_set_string.format( d = 1500, s = 52 ) ), ignore_pmts = [176]).loc[1500, : :]
+
+pmt_list = pmt_test_data.columns
+
+#apply pmt fluctuations
+sigma = 0.15
+fluctuations = pd.Series( sigma*np.random.randn(len(pmt_list) ) + 1, index = pmt_list )
+pmt_test_fluctuated_data = pmt_test_data * fluctuations 
+
+
+def calc():
+    chi2_aligner = pycedar.Chi2Aligner( groups = pycedar.get_chi2_sixths(), 
+            errfun = pycedar.default_errfun )
+
+    chi2_aligner.set_templates( pmt_template_data )
+    chi2_aligner.prepare_templates()
+
+    prepared_data = chi2_aligner.prepare_data_sets( pmt_test_fluctuated_data )
+    test_spot = prepared_data.loc[-400, 200]
+    print( test_spot )
+    chi2_aligner.compute_alignment( test_spot )
+
+    print( chi2_aligner.best_xy() )
+
+    dtchi2 = chi2_aligner.last_result
+
+    dtchi2.to_pickle('cache/fluc15chi2.pck' )
+
+def plot():
+    dtchi2 = pd.io.pickle.read_pickle( 'cache/fluc15chi2.pck' )
+    fig = plt.figure( figsize = [8, 6] )
+    fig.set_tight_layout(True)
+    ax = fig.add_subplot( 111 )
+
+    def set_up_ax( ax, myrange ):
+        ax.grid( True )
+        ax.set_xlim( -myrange, myrange )
+        ax.set_ylim( -myrange, myrange )
+
+        ax.yaxis.set_major_formatter(pycedar.format_mm)
+        ax.xaxis.set_major_formatter(pycedar.format_mm)
+
+        ax.set_xlabel( 'x (mm)')
+        ax.set_ylabel( 'y (mm)')
+
+    set_up_ax( ax, 1000 )
+
+
+    minlnchi2 = dtchi2['chi2'].min()
+    maxlnchi2 = dtchi2['chi2'].max()
+
+    print( '{0:8.2g} {1:8.2g}'.format( minlnchi2, maxlnchi2 ) )
+
+    plotted = ax.scatter( dtchi2['x'], dtchi2['y'],
+            c = np.log(dtchi2['chi2']), vmin = np.log(minlnchi2), vmax = np.log(minlnchi2)+1,
+            marker = 's', s = 75 , edgecolor = 'None',
+            cmap = 'YlGnBu_r')
+
+    cbar = plt.colorbar( mappable = plotted )
+
+    plt.savefig( 'output/fluc15chi2.pdf', format = 'pdf', transparent  = 'true' )
+
+    plt.cla()
+    f, (ax1, ax2) = plt.subplots( 2, 1 )
+    f.set_size_inches( 24, 8 )
+    ax1.set_xlim( 100, 500 )
+    ax2.set_xlim( 500, 900 )
+    testdt = pmt_test_fluctuated_data.loc[-400, 200]
+    ax1.bar( testdt.index, testdt.values, color = 'Red', ec = 'None', alpha = 0.5 )
+    ax2.bar( testdt.index, testdt.values, color = 'Red', ec = 'None', alpha = 0.5 )
+    test2dt = pmt_test_fluctuated_data.loc[+400, 100]
+    ax1.bar( test2dt.index, test2dt.values, color = 'Green', ec = 'None', alpha = 0.5 )
+    ax2.bar( test2dt.index, test2dt.values, color = 'Green', ec = 'None', alpha = 0.5 )
+    plt.savefig( 'output/histm400_p200.pdf', format = 'pdf', transparent  = 'true' )
+
+
+#calc()
+plot()

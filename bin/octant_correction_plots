@@ -16,7 +16,7 @@ mean_blue_sens = test_sheet.groupby( pycedar.get_pmt_type )['cathode_blue_sens']
 print ( mean_blue_sens)
 
 print( 'Blue correction by position' )
-pos_blue_correction = pycedar.get_pos_blue_corr( pmt_pos, test_sheet, 'cathode_luminous_sens' )
+pos_blue_correction = pycedar.get_pos_blue_corr( pmt_pos, test_sheet, 'cathode_blue_sens' )
 
 print( pos_blue_correction[ pos_blue_correction['blue_corr'] < 0.9 ] )
 
@@ -74,7 +74,7 @@ ax.plot( octant_list, data_fit, '-s', color = 'DarkRed',  label = 'Values from d
 ax.set_xlabel( 'Per octant rescaling factor' )
 
 ax.errorbar( corrections.index, corrections.values, color = 'DarkGreen',
-        yerr = corr_stat_err, label = 'No Blue index simulation', fmt = '-^', capthick = 2 )
+        yerr = corr_stat_err, label = 'Values from simulation', fmt = '-^', capthick = 2 )
 
 handles, labels = ax.get_legend_handles_labels()
 plt.legend( handles, labels , loc = 'upper right')

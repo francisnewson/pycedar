@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+
+import pycedar
+import gzip
+import pandas as pd
+import logging
+import cProfile
+import matplotlib.pyplot as plt
+
+data_set_string = 'data/align_csv/kaonp_1710_{d}_{s}.csv.gz'
+
+pmt_template_data_800 = pycedar.load_templates_csv( 
+        gzip.open( data_set_string.format( d = 800, s = 42 ) ) ).loc[800, :, : ]
+
+pmt_test_data_800 = pycedar.load_templates_csv( 
+        gzip.open( data_set_string.format( d = 800, s = 52 ) ) ).loc[800, : :]
+
+#Load wide dataset for asym corrections
+wide_data = pycedar.load_templates_csv( 
+        gzip.open( 'data/align_csv/kaonp_1710_20000_42.csv.gz' ) ).loc[20000, :, : ] 
+
+#test chi2 at 1.2mm
+chi2_aligner = pycedar.Chi2Aligner( groups = pycedar.get_chi2_sixths(), 
+        errfun = pycedar.default_errfun )
+
+chi2_aligner.set_templates( pmt_template_data_800 )
+chi2_aligner.prepare_templates()
+chi2_aligner.prepare_indices()

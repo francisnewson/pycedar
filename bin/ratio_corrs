@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+import pycedar
+import gzip
+import pandas as pd
+import logging
+import matplotlib.pyplot as plt
+import cProfile
+import sys
+import numpy as np
+
+#Load template and test datasets
+data_set_string = 'data/align_csv/kaonp_1710_{d}_{s}.csv.gz'
+
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+
+coordkeys = [ 'coord', 'level', 'asym', 'err' ]
+coordin = [
+        [ 'x', 'y', 'lr', 'lr_err' ],
+        [ 'y', 'x', 'ud', 'ud_err' ] ]
+coords = [ dict( zip( coordkeys, vals ) ) for vals in coordin ]
+print( coords )
+ 
+
+wide_data = pycedar.load_templates_csv( 
+        gzip.open( 'data/align_csv/kaonp_1710_20000_42.csv.gz' )).loc[20000, :, : ] 
+corrections = pycedar.octant_corrections( wide_data )
+
+for corr in [ True, False ]:
+    for c in coords:
+        ax.set_color_cycle( None )
+        ax.set_color_cycle( ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3',
+        '#a6d854', '#ffd92f', '#e5c494', '#b3b3b3' ] )
+        for dw in [ 800, 1000, 1200, 1500, 20000 ]:
+            seed = 52
+            if  dw == 20000: seed = 42
+            all_pmt_template_data = pycedar.load_templates_csv( 
+                    gzip.open( data_set_string.format( d = dw, s = seed ) ) )
+            template_data = all_pmt_template_data.loc[dw, :, :]
+
+            hits = template_data.groupby( pycedar.get_octant, axis = 1).sum()
+            if corr:
+                hits = corrections * hits
+            asym = hits.apply( pycedar.oct_asym, axis = 1 )
+
+            xlr = asym.xs( 0, level = c['level'], axis = 0 )
+
+
+            ax.errorbar( xlr.index.values, xlr[c['asym']], yerr = xlr[c['err']],
+                    fmt = '-o', mec = 'None', label = '{0}mm'.format( 0.001 * dw ) )
+
+
+        ax.set_xlim( -2000, 2000 )
+        ax.set_ylim( -0.06, 0.06 )
+        ax.set_xlabel( 'Misalignment in {0} (mm)'.format( c['coord'] ) )
+        ax.grid('on')
+        ax.xaxis.set_major_formatter(pycedar.format_mm)
+        handles, labels = ax.get_legend_handles_labels()
+        plt.legend( handles, labels, loc = 'upper right' )
+        plt.savefig( 'output/ratio_corrs/{0}{1}.pdf'.format( 'corr' if corr else 'raw' , c['coord'] ),
+                format = 'pdf', transparent = 'true' )
+        ax.cla()

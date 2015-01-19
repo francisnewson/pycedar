@@ -29,7 +29,7 @@ def df_chi2( dt, mc ):
     dtsum = float( dt['hits'].sum() )
     mcsum = float( mc['hits'].sum() )
     ratio = dtsum / mcsum
-    chi2_terms = chi2_term( dt['hits'], dt['sqerr'], mc['hits'], mc['sqerr'], ratio )
+    chi2_terms = chi2_term( dt['hits'].values, dt['sqerr'].values, mc['hits'].values, mc['sqerr'].values, ratio )
     return float(sum( chi2_terms ))
 
 def extract_group_totals( data, groups, errfun = default_errfun ):
@@ -58,6 +58,10 @@ class Chi2Aligner:
             prepared_dict[k] = self.extract_group_totals( data_sets.loc[k] )
 
         return pd.Panel( prepared_dict )
+
+    def prepare_indices( self ):
+        print (type(  self.template_group_totals.items.map( lambda x: True) ) )
+        print ( self.template_group_totals.items.map( lambda x: x[0] % 200 == 0 ) )
 
     def looper( self, data_sets):
         return data_sets.iteritems()
@@ -92,6 +96,11 @@ class Chi2Aligner:
         result = self.template_group_totals.apply( chi2_fun, axis =[1,2] )
         return ( result )
 
+    def staged_alignment( self, dt ):
+        def chi2_fun( mc ):
+            return df_chi2(dt, mc )
+        result = self.template_group_totals.apply( chi2_fun, axis =[1,2] )
+
 
     def interpolate_best_xy( self ):
         fd = self.last_result
@@ -108,7 +117,8 @@ class Chi2Aligner:
         self.best_fit = pxy( res.x[0], res.x[1] )
 
     def compute_alignment( self, test_data ):
-        self.last_result = self.apply_alignment( test_data ).reset_index()
+        #self.last_result = self.apply_alignment( test_data ).reset_index()
+        self.last_result = self.loop_alignment( test_data ).reset_index()
         self.last_result.columns = [ 'x', 'y', 'chi2' ]
         self.best_fit = self.last_result.loc[ self.last_result['chi2'].idxmin() ]
         if self.interpolate:
