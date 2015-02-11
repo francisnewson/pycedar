@@ -45,12 +45,12 @@ def get_func( fv ):
         return sum( fn( x) for fn in funcs.values() )
     return f
 
-timing_data = pd.read_csv( 'inter/h2014timing.dat', names = ['t_low', 'N'],
+timing_data = pd.read_csv( 'inter/h2012timing.dat', names = ['t_low', 'N'],
         delim_whitespace = True )
 
 func_values = {}
 
-with open( 'inter/h2014stats.dat') as f:
+with open( 'inter/h2012stats.dat') as f:
     for line in f:
         if ( line.strip() ):
             name, val = line.strip().split()
@@ -86,7 +86,7 @@ handles, labels = ax.get_legend_handles_labels()
 
 plt.legend( handles, labels , loc = 'upper right')
 
-plt.savefig( 'output/timing2014.pdf', format = 'pdf',
+plt.savefig( 'output/timing2012.pdf', format = 'pdf',
         transparent = 'true')
 
 plt.cla()
@@ -107,5 +107,5 @@ handles, labels = ax.get_legend_handles_labels()
 
 plt.legend( handles, labels , loc = 'upper right')
 
-plt.savefig( 'output/timing2014total.pdf', format = 'pdf',
+plt.savefig( 'output/timing2012total.pdf', format = 'pdf',
         transparent = 'true')

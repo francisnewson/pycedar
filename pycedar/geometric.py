@@ -6,6 +6,7 @@ from scipy import optimize
 import numpy as np
 from matplotlib import _cntr as cntr
 import shapely.geometry
+import matplotlib.pyplot as plt
 
 def project( pmt ):
     #shift origin
@@ -100,6 +101,7 @@ class GeomAligner:
         return paths
 
     def compute_alignment( self, test_data ):
+        self.last_data  = test_data
         xlines = self.xcont.trace( test_data.fitx )
         ylines = self.ycont.trace( test_data.fity )
 
@@ -133,3 +135,18 @@ class GeomAligner:
 
     def best_xy( self ):
         return list(reversed(self.best_xys[0]))
+
+    def plot_hitmap( self, ax, data ):
+        ax.set_xlabel( 'x (cm)' )
+        ax.set_ylabel( 'y (cm)' )
+        ax.set_aspect( 'equal' )
+        plotted = ax.scatter( self.proj_map['x'], self.proj_map['y'], c =  data, edgecolor = 'None' )
+        return plotted
+
+    def plot_last_fit( self, ax, data ):
+        fit = self.last_data
+        fit_circle=plt.Circle((fit.fitx,fit.fity),fit.fitr,color='Black', fill = False)
+        line = ax.add_artist( fit_circle )
+        plt.setp( line , linestyle = 'dashed' )
+        return plotted
+

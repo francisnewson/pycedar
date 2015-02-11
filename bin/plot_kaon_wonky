@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+data = pd.read_csv( 'data/kaon_wonky_pscan.dat', comment = '#', delim_whitespace = True )
+
+print( data )
+
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+ax.grid( 'on' )
+
+ax.plot( data['pressure'] , data['hits'] , '-o', label = 'Raw' )
+ax.plot( data['pressure'] , 0.7*data['hits'] , '-o', label = 'Standard 30% inefficiency' )
+
+plt.savefig( 'output/kaon_wonky_pscan.pdf', format = 'pdf' )

@@ -90,5 +90,5 @@ def plot():
     plt.savefig( 'output/histm400_p200.pdf', format = 'pdf', transparent  = 'true' )
 
 
-#calc()
+calc()
 plot()

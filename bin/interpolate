@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from pandas.computation import expressions as expr
 import sys
 
-regen = True
+regen = False
 
 expr.set_use_numexpr(False )
 
@@ -78,8 +78,8 @@ if regen:
     chi2_results.to_pickle( 'cache/chi2_raw.pck' )
     interp_chi2_results.to_pickle( 'cache/interp_chi2_raw.pck' )
 else:
-    chi_results = pd.io.pickle.read_pickle( 'cache/chi2_raw.pck' )
-    interp_chi_results = pd.io.pickle.read_pickle( 'cache/interp_chi2_raw.pck' )
+    chi2_results = pd.io.pickle.read_pickle( 'cache/chi2_raw.pck' )
+    interp_chi2_results = pd.io.pickle.read_pickle( 'cache/interp_chi2_raw.pck' )
 
 
 
@@ -118,7 +118,7 @@ ax.set_ylabel( 'y (mm)')
 
 plotted =  ax.scatter( chi2_results['x'], chi2_results['y'], c = chi2_results['dx'],
         cmap = pycedar.blind_colormap( 'Spectral', 'widecm', 0.1 ),
-        marker = 's', edgecolor = 'None', vmin = -200, vmax = 200 ) 
+        marker = 's', s = 80, edgecolor = 'None', vmin = -200, vmax = 200 ) 
 
 cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mmm )
 plt.savefig( 'output/chi2/coarse.pdf', format = 'pdf', transparent = 'true' )
@@ -139,7 +139,7 @@ ax.set_ylabel( 'y (mm)')
 plotted =  ax.scatter( 
         interp_chi2_results['x'], interp_chi2_results['y'], c = interp_chi2_results['dx'],
         cmap = pycedar.blind_colormap( 'Spectral', 'widecm', 0.1 ),
-        marker = 's', edgecolor = 'None', vmin = -200, vmax = 200 )
+        marker = 's', s = 80, edgecolor = 'None', vmin = -200, vmax = 200 )
 
 cbar = plt.colorbar( mappable = plotted, format = pycedar.format_mmm )
 

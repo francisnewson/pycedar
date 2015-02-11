@@ -7,6 +7,11 @@ import matplotlib.pyplot as plt
 import cProfile
 import sys
 import numpy as np
+import os.path as osp
+import os
+import errno
+import argparse
+import yaml
 
 def set_up_ax( ax, myrange ):
     ax.grid( True )
@@ -29,98 +34,207 @@ def plot_test_results( ax, test_results, column, cmap , dictargs ):
     return ax.scatter( test_results['x'], test_results['y'], c = test_results[column],
             cmap = plt.get_cmap( cmap ), marker = 's', edgecolor = 'None' , **dictargs )
 
+def mkdir_p(path):
+    '''Simulates the shell command mkdir -p'''
+    try:
+        os.makedirs(path)
+    except OSError as exc: # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else: raise
+
+#--------------------------------------------------#
+#                                                  #
+#                      MAIN                        #
+#                                                  #
+#--------------------------------------------------#
+
 logging.basicConfig( level = logging.DEBUG )
 
-#CONFIG
-myslice = 1400
-mydiaphragm = 1500
-spline_smoothing = 80
-plot_range = 1200
+#get input parameters
+parser = argparse.ArgumentParser()
+parser.add_argument( 'config_file', help = 'config yaml file' )
+
+args = parser.parse_args()
+sys.stderr.write( "Reading from {0}\n".format( args.config_file ) )
+
+print ( args )
+
+#load config file
+config_file = open ( args.config_file )
+config = yaml.load( config_file )
+
+#--------------------------------------------------#
+# CONFIG
+#--------------------------------------------------#
+
+logging.info('Reading config' )
+
+plot_range = config['chi2']['plot_range']
+search_radius = config['chi2']['search_range']
+
+mydiaphragm = config['templates']['diaphragm']
+template_data_file = config['templates']['template_file']
+ignore_pmts = config['templates']['ignore_pmts']
+
+wide_template_data = config['asym']['wide_template_file']
+wide_diaphgram = config['asym']['wide_diaphragm']
+
+spline_templates =  config['asym']['spline_templates']
+spline_diaphragm = config['asym']['spline_diaphragm']
+spline_smoothing =  config['asym']['spline_smoothing']
+spline_step = config['asym']['spline_step']
+spline_range =  config['asym']['spline_range']
+
+template_slice = slice( -(search_radius+200 ), search_radius + 200 )
+
+real_data_file = config['files']['data']
+output_prefix = config['files']['output_prefix']
+mkdir_p( output_prefix )
+
+#--------------------------------------------------
+# IMPORT DATA
+#--------------------------------------------------
+
+logging.info('Importing data' )
 
 #Load template and test datasets
-data_set_string = 'data/align_csv/kaonp_1710_{d}_{s}.csv.gz'
 all_pmt_template_data = pycedar.load_templates_csv( 
-        gzip.open( data_set_string.format( d = mydiaphragm, s = 42 ) ), ignore_pmts = [176] ).loc[mydiaphragm, :, : ]
+        gzip.open( template_data_file ), ignore_pmts = ignore_pmts ).loc[mydiaphragm, :, : ]
 
 #Restrict to my slice
-pmt_template_data = all_pmt_template_data.loc[(slice(-(myslice+200),myslice+200), slice(-(myslice+200),myslice+200)), :]
+pmt_template_data = all_pmt_template_data.loc[ (template_slice, template_slice) , :]
 
 #Load wide dataset for asym corrections
 wide_data = pycedar.load_templates_csv( 
-        gzip.open( 'data/align_csv/kaonp_1710_20000_42.csv.gz' ), ignore_pmts = [176] ).loc[20000, :, : ] 
+        gzip.open( wide_template_data ), ignore_pmts = ignore_pmts ).loc[wide_diaphgram, :, : ] 
 
 #load templates for splines
-spline_templates = pycedar.load_templates_csv( 'data/align_csv/kaonp_1710_1500_splines.csv.gz' ).loc[1500, :, :]
+spline_templates = pycedar.load_templates_csv( spline_templates, ignore_pmts = ignore_pmts ).loc[ spline_diaphragm, :, :]
 
-chi2_aligner = pycedar.Chi2Aligner(groups = pycedar.get_chi2_sixths(), errfun = pycedar.default_errfun )
-asym_aligner = pycedar.AsymAligner( wideset = wide_data, spline_range = myslice, spline_smoothing = spline_smoothing )
-geom_aligner = pycedar.GeomAligner()
+#load DATA
+real_data =  pycedar.load_templates_csv( open( real_data_file ),
+        index_col = 'index' , ignore_pmts = ignore_pmts )
 
-real_data =  pycedar.load_templates_csv( open('data/dt2014/run1322.dat'), ignore_pmts = [176], index_col = 'index' )
+#--------------------------------------------------
+# SETUP PLOTTING
+#--------------------------------------------------
 
-asym_aligner_data = asym_aligner.prepare_data_sets(real_data) 
-asym_aligner.set_templates( spline_templates )
-asym_aligner.prepare_templates()
-asym_aligner.compute_alignment( asym_aligner_data.loc['data'] )
-
-print( asym_aligner_data.loc['data'] )
-print( 'ASYM: {0}'.format(asym_aligner.best_xy() ))
-
-chi2_aligner.set_templates( pmt_template_data )
-print( real_data.index )
-chi2_aligner_data = chi2_aligner.prepare_data_sets(real_data) 
-
-chi2_aligner.prepare_templates()
-chi2_aligner.compute_alignment( chi2_aligner_data.loc['data'] )
-print( 'CHI2: {0}'.format(chi2_aligner.best_xy() ))
-
-chi2_aligner.interpolate = True
-
-print( real_data.index )
-chi2_aligner.compute_alignment( chi2_aligner_data.loc['data'] )
-print( 'CHI2(interpolated) {0}'.format(chi2_aligner.best_xy() ))
-
-geom_aligner_data = geom_aligner.prepare_data_sets(real_data) 
-geom_aligner.set_templates( pmt_template_data )
-geom_aligner.prepare_templates()
-geom_aligner.compute_alignment( geom_aligner_data.loc['data'] )
-print( 'GEOM: {0}'.format(geom_aligner.best_xy() ) )
+logging.info('Preparing plot canvas' )
 
 fig = plt.figure( figsize = [8, 6] )
 fig.set_tight_layout(True)
 ax = fig.add_subplot( 111 )
 
-dtchi2 = chi2_aligner.last_result
+#--------------------------------------------------
+# CHI2 ALIGNER
+#--------------------------------------------------
 
+logging.info('CHI2 ALIGNER' )
+
+chi2_aligner = pycedar.Chi2Aligner(
+        groups = pycedar.get_chi2_sixths(), errfun = pycedar.default_errfun )
+
+logging.info('Preparing templates' )
+chi2_aligner.set_templates( pmt_template_data )
+chi2_aligner.prepare_templates()
+
+chi2_aligner_data = chi2_aligner.prepare_data_sets(real_data) 
+
+#raw alignment
+logging.info('Computing alignment' )
+chi2_aligner.compute_alignment( chi2_aligner_data.loc['data'] )
+print( '{0:20}: {1}'.format( "CHI2", chi2_aligner.best_xy() ))
+
+#interpolated alignment
+chi2_aligner.interpolate = True
+chi2_aligner.compute_alignment( chi2_aligner_data.loc['data'] )
+print( '{0:20}: {1}'.format( "CHI2(interpolated)", chi2_aligner.best_xy() ))
+
+#plot chi2 plot
+logging.info('Plotting chi2 results' )
+dtchi2 = chi2_aligner.last_result
 set_up_ax( ax, 1000 )
 
-print( np.log(dtchi2['chi2'] ).min() )
-
 minlnchi2 = np.log( dtchi2['chi2'].min() )
-
 plotted = ax.scatter( dtchi2['x'], dtchi2['y'], c =  np.log(dtchi2['chi2'] ),
         marker = 's', s = 75 , edgecolor = 'None',
         cmap = 'YlGnBu_r', vmin = minlnchi2 , vmax = minlnchi2+0.2 )
 
 cbar = plt.colorbar( mappable = plotted )
 
-plt.savefig( 'output/real_data.pdf', format = 'pdf', transparent  = 'true' )
-
-
-
+chi2_plot_file = osp.join( output_prefix, 'chi2_2d.pdf' )
+plt.savefig( chi2_plot_file , format = 'pdf', transparent  = 'true' )
 cbar.remove()
 plt.cla()
+
+#--------------------------------------------------
+# ASYM ALIGNER
+#--------------------------------------------------
+logging.info('ASYM ALIGNER' )
+
+asym_aligner = pycedar.AsymAligner( wideset = wide_data, 
+        spline_range = spline_range, spline_smoothing = spline_smoothing,
+        spline_step = spline_step )
+
+logging.info('Preparing templates' )
+asym_aligner.set_templates( spline_templates )
+asym_aligner.prepare_templates()
+
+asym_aligner_data = asym_aligner.prepare_data_sets(real_data)
+
+logging.info('Computing alignment' )
+print( asym_aligner_data.loc['data'] )
+asym_aligner.compute_alignment( asym_aligner_data.loc['data'] )
+print( '{0:20}: {1}'.format( "ASYM", asym_aligner.best_xy() ))
+
+#plot assymetry curves
+logging.info('Plotting asym results' )
 fig.set_size_inches( 6, 6, )
 
 asym_aligner.plot_xinvspline( ax )
-plt.savefig( 'output/real_data_xspline.pdf', format = 'pdf', transparent  = 'true' )
-
+xspline_plot_file = osp.join( output_prefix, 'xspline.pdf' )
+plt.savefig( xspline_plot_file , format = 'pdf', transparent  = 'true' )
 plt.cla()
+
 asym_aligner.plot_yinvspline( ax )
-plt.savefig( 'output/real_data_yspline.pdf', format = 'pdf', transparent  = 'true' )
-
+yspline_plot_file = osp.join( output_prefix, 'yspline.pdf' )
+plt.savefig( yspline_plot_file , format = 'pdf', transparent  = 'true' )
 plt.cla()
 
+#--------------------------------------------------
+#GEOM ALIGNER
+#--------------------------------------------------
+
+logging.info('GEOM ALIGNER' )
+
+geom_aligner = pycedar.GeomAligner()
+
+geom_aligner.set_templates( pmt_template_data )
+geom_aligner.prepare_templates()
+
+geom_aligner_data = geom_aligner.prepare_data_sets(real_data) 
+
+print( geom_aligner_data )
+geom_aligner.compute_alignment( geom_aligner_data.loc['data'] )
+print( '{0:20}: {1}'.format( "GEOM", geom_aligner.best_xy() ))
+
+plotted =  geom_aligner.plot_hitmap( ax, real_data )
+cbar = plt.colorbar( mappable = plotted )
+hitmap_plot_file = osp.join( output_prefix, 'hitmap.pdf' )
+plt.savefig( hitmap_plot_file , format = 'pdf', transparent = 'true' )
+
+cbar.remove()
+plt.cla()
+
+
+
+#--------------------------------------------------
+# MISCELLANEOUS PLOTS
+#--------------------------------------------------
+
+logging.info('Extra plots') 
 pycedar.plot_dataset(ax, real_data.loc['data'] )
 fig.set_size_inches( 20, 6, )
-plt.savefig( 'output/real_data_hist.pdf', format = 'pdf', transparent = 'true' )
+hist_plot_file = osp.join( output_prefix, 'hist.pdf' )
+plt.savefig( hist_plot_file , format = 'pdf', transparent = 'true' )

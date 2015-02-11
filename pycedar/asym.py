@@ -59,7 +59,6 @@ class SplineInfo:
 
 def get_splines( ds, coord, coord_range, asym, asym_err, s = 10, step = 200):
     fit_data = get_splinefit_data( ds, coord, coord_range, step )
-    print( fit_data )
     asym_spline = UnivariateSpline( fit_data.index.values, fit_data[asym], 
             w = 1 / fit_data[asym_err], s = s )
 
@@ -77,19 +76,21 @@ def get_splines( ds, coord, coord_range, asym, asym_err, s = 10, step = 200):
     return spi
 
 class AsymAligner:
-    def __init__(self, wideset = None, spline_range = 2000, spline_smoothing = 30 ):
+    def __init__(self, wideset = None, spline_range = 2000, spline_smoothing = 30, spline_step = 200 ):
         self.corrections = octant_corrections( wideset )
         self.spline_range = spline_range
         self.spline_smoothing = spline_smoothing
-        self.spline_step = 200
+        self.spline_step = spline_step
+        self.do_corrections = True
 
     def set_templates( self, templates ):
         self.templates = templates
 
     def prepare_data_sets( self, data_sets ):
         hits = data_sets.groupby( get_octant, axis = 1 ).sum()
-        corr_hits =  hits * self.corrections
-        #corr_hits = hits
+        corr_hits = hits
+        if self.do_corrections:
+            corr_hits =  hits * self.corrections
         result =  corr_hits.apply( oct_asym, axis = 1 )
         return result
 
@@ -102,13 +103,16 @@ class AsymAligner:
     def prepare_templates( self ):
         self.template_group_totals = self.prepare_data_sets( self.templates)
         self.xspi =  get_splines( self.template_group_totals,
-                'x', ( -self.spline_range, self.spline_range), 'lr', 'lr_err', self.spline_smoothing, self.spline_step )
+                'x', ( -self.spline_range, self.spline_range), 
+                'lr', 'lr_err', self.spline_smoothing, self.spline_step )
+
         self.yspi = get_splines( self.template_group_totals,
-                'y', ( -self.spline_range, self.spline_range), 'ud', 'ud_err', self.spline_smoothing, self.spline_step )
+                'y', ( -self.spline_range, self.spline_range),
+                'ud', 'ud_err', self.spline_smoothing, self.spline_step )
 
     def compute_alignment( self, test_data ):
-        self.last_x = self.xspi.invspline( test_data['lr'] )
-        self.last_y = self.yspi.invspline( test_data['ud'] )
+        self.last_x = self.xspi.invspline( test_data['lr'] ).flat[0]
+        self.last_y = self.yspi.invspline( test_data['ud'] ).flat[0]
 
     def best_xy( self):
         return ( self.last_x, self.last_y )
@@ -122,12 +126,8 @@ class AsymAligner:
         ax.set_xlim( -0.05, 0.05 )
         ax.set_ylim( -2000, 2000 )
 
-        #print( self.xspi.fit_data )
-        #print( self.xspi.spline_data )
-
         ax.errorbar( self.xspi.fit_data['lr'] , self.xspi.fit_data.index,
                 xerr = self.xspi.fit_data['lr_err'], fmt='o', color = 'Gray', mec = 'none' )
-        #ax.plot( self.xspi.spline_data['lr'] , self.xspi.spline_data['x'], ls = '-', lw = 2, color = '#a6d854' )
         asym_range = np.linspace( -0.2,0.2, 200 )
         ax.plot( asym_range, self.xspi.invspline( asym_range), ls = '--', lw = 2, color = '#e78ac3' )
 
@@ -140,8 +140,6 @@ class AsymAligner:
         ax.set_xlim( -0.05, 0.05 )
         ax.set_ylim( -2000, 2000 )
 
-        #print( self.xspi.fit_data )
-        #print( self.xspi.spline_data )
 
         ax.errorbar( self.yspi.fit_data['ud'] , self.yspi.fit_data.index,
                 xerr = self.yspi.fit_data['ud_err'], fmt='o', color = 'Gray', mec = 'None' )

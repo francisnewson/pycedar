@@ -1,0 +1,30 @@
+files:
+    data: 'data/dt2014/hit_filtered_r1520_20.dat'
+    output_prefix: 'output/tests/run_1520_20_filtered'
+
+templates:
+    ignore_pmts: [ 
+        115, 122, 127, 141, 148, 151, 159, 161, 168, 182, 187,
+        215, 222, 227, 241, 248, 251, 259, 261, 268, 282, 287,
+        315, 322, 327, 341, 348, 351, 359, 361, 368, 382, 387,
+        415, 422, 427, 441, 448, 451, 459, 461, 468, 482, 487,
+        515, 522, 527, 541, 548, 551, 559, 561, 568, 582, 587,
+        615, 622, 627, 641, 648, 651, 659, 661, 668, 682, 687,
+        715, 722, 727, 741, 748, 751, 759, 761, 768, 782, 787,
+        815, 822, 827, 841, 848, 851, 859, 861, 868, 882, 887 ]
+
+    template_file: 'data/align_csv/kaonp_1710_1500_42.csv.gz'
+    diaphragm: 1500
+
+chi2:
+    plot_range: 1200
+    search_range: 1000
+
+asym:
+    wide_template_file: 'data/align_csv/kaonp_1710_20000_42.csv.gz'
+    wide_diaphragm : 20000
+    spline_templates: 'data/align_csv/kaonp_1710_800_splines.csv.gz'
+    spline_diaphragm : 800
+    spline_smoothing : 80
+    spline_step : 50
+    spline_range : 1000
