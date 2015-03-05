@@ -1,0 +1,10 @@
+#!/opt/local/bin/bash
+
+./bin/visualize_data -i data/align_csv/kaonp_1710_1500_42.csv.gz -p output/visualize/kaonp_p_1710_d_1500_x_m1600_y_p2000 -d 1500 -x -1600 -y 2000
+exit
+
+for yy in 0000 0200 0400 0600 0800 1000
+do
+    ./bin/visualize_data -i data/align_csv/kaonp_1710_1500_42.csv.gz -p output/visualize/kaonp_p_1710_d_1500_x_p0000_y_p$yy -d 1500 -x 0 -y $yy
+    ./bin/visualize_data -i data/align_csv/kaonp_1710_1500_42.csv.gz -p output/visualize/kaonp_p_1710_d_1500_x_p0000_y_m$yy -d 1500 -x 0 -y -$yy
+done

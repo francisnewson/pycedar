@@ -1,15 +1,27 @@
 #!/usr/bin/env python
 import pycedar
 import matplotlib.pyplot as plt
+import pandas as pd
+
+pd.set_option( 'display.width', 1600 )
 
 print( 'Loading PMT Test Sheet:' )
 test_sheet = pycedar.load_test_sheet( open( 'params/pmt_test_sheet.dat' ) )
+test_sheet.sort( inplace=True)
 
+
+print( 'Loading Tonino numbers' )
+tonino_sheet = pd.read_csv( open( 'params/tonino.csv'),
+        delim_whitespace=True, index_col = 'serial_number'  )
+tonino_sheet.sort( inplace=True)
+
+all_data = test_sheet.join(tonino_sheet)
+all_data.sort( 'equalization' , inplace=True)
+print( all_data )
 
 fig = plt.figure( figsize = [8, 6] )
 ax = fig.add_subplot( 111 )
 ax.grid( True )
-
 
 fig.set_tight_layout(True)
 ax.plot( test_sheet['cathode_luminous_sens'], test_sheet['cathode_blue_sens'], 'o' )
@@ -20,7 +32,7 @@ plt.ylim( ymin = 0 )
 plt.xlim( xmin = 0 )
 ax.grid( True )
 
-plt.savefig( 'output/pmt_lum_blue.pdf', format = 'pdf', transparent = 'true' )
+plt.savefig( 'output/pmt_correlations/pmt_lum_blue.pdf', format = 'pdf', transparent = 'true' )
 
 ax.cla()
 
@@ -32,4 +44,28 @@ plt.ylim( ymin = 0 )
 plt.xlim( xmin = 0 )
 ax.grid( True )
 
-plt.savefig( 'output/pmt_anode_lum_blue.pdf', format = 'pdf', transparent = 'true' )
+plt.savefig( 'output/pmt_correlations/pmt_anode_lum_blue.pdf', format = 'pdf', transparent = 'true' )
+
+ax.cla()
+
+ax.plot( all_data['cathode_luminous_sens'], 1/all_data['equalization'], 'o' )
+ax.set_xlabel( 'Cathode Luminous Sensitivity'  )
+ax.set_ylabel( '1 / Measured equalization correction'  )
+
+plt.ylim( ymin = 0, ymax = 2 )
+plt.xlim( xmin = 0 )
+ax.grid( True )
+
+plt.savefig( 'output/pmt_correlations/pmt_cathode_lum_vs_equal.pdf', format = 'pdf', transparent = 'true' )
+
+ax.cla()
+
+ax.plot( all_data['cathode_blue_sens'], 1/all_data['equalization'], 'o' )
+ax.set_xlabel( 'Cathode Blue Sensitivity'  )
+ax.set_ylabel( '1 / Measured equalization correction'  )
+
+plt.ylim( ymin = 0, ymax = 2 )
+plt.xlim( xmin = 0 )
+ax.grid( True )
+
+plt.savefig( 'output/pmt_correlations/pmt_cathode_blue_vs_equal.pdf', format = 'pdf', transparent = 'true' )

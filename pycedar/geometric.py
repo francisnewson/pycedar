@@ -46,6 +46,14 @@ def circle_fit( hits, projmap ):
 
     return pd.Series( dict( fitx = res.x[0] , fity = res.x[1], fitr = res.x[2] ) )
 
+def make_proj_map():
+    pos_map = pd.read_csv( 'params/pmt_3d_pos.dat', delim_whitespace = True,
+                names = ['pmt', 'x', 'y', 'z' ], index_col = 'pmt'  )
+
+    pos_map['sector']  = pos_map.index / 100
+    proj_map  = pos_map.apply( project, axis = 1 )
+    return proj_map
+
 class GeomAligner:
     def __init__(self):
         self.pos_map = pd.read_csv( 'params/pmt_3d_pos.dat', delim_whitespace = True,

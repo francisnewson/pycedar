@@ -59,6 +59,7 @@ class SplineInfo:
 
 def get_splines( ds, coord, coord_range, asym, asym_err, s = 10, step = 200):
     fit_data = get_splinefit_data( ds, coord, coord_range, step )
+    print( fit_data )
     asym_spline = UnivariateSpline( fit_data.index.values, fit_data[asym], 
             w = 1 / fit_data[asym_err], s = s )
 
@@ -77,7 +78,8 @@ def get_splines( ds, coord, coord_range, asym, asym_err, s = 10, step = 200):
 
 class AsymAligner:
     def __init__(self, wideset = None, spline_range = 2000, spline_smoothing = 30, spline_step = 200 ):
-        self.corrections = octant_corrections( wideset )
+        if wideset is not None:
+            self.corrections = octant_corrections( wideset )
         self.spline_range = spline_range
         self.spline_smoothing = spline_smoothing
         self.spline_step = spline_step
@@ -117,29 +119,28 @@ class AsymAligner:
     def best_xy( self):
         return ( self.last_x, self.last_y )
 
-    def plot_xinvspline(self, ax ):
+    def plot_xinvspline(self, ax, xlim = 0.05, ylim = 2000 ):
         ax.set_xlabel( 'L/R Asymmetry' )
         ax.yaxis.set_major_formatter(plotting.format_mm)
         ax.set_ylabel( 'x (mm)')
         ax.grid( True )
         ax.autoscale()
-        ax.set_xlim( -0.05, 0.05 )
-        ax.set_ylim( -2000, 2000 )
+        ax.set_xlim( -xlim, xlim )
+        ax.set_ylim( -ylim, ylim )
 
         ax.errorbar( self.xspi.fit_data['lr'] , self.xspi.fit_data.index,
                 xerr = self.xspi.fit_data['lr_err'], fmt='o', color = 'Gray', mec = 'none' )
         asym_range = np.linspace( -0.2,0.2, 200 )
         ax.plot( asym_range, self.xspi.invspline( asym_range), ls = '--', lw = 2, color = '#e78ac3' )
 
-    def plot_yinvspline(self, ax ):
+    def plot_yinvspline(self, ax, xlim = 0.05, ylim = 2000 ):
         ax.set_xlabel( 'U/D Asymmetry' )
         ax.yaxis.set_major_formatter(plotting.format_mm)
         ax.set_ylabel( 'y (mm)')
         ax.grid( True )
         ax.autoscale()
-        ax.set_xlim( -0.05, 0.05 )
-        ax.set_ylim( -2000, 2000 )
-
+        ax.set_xlim( -xlim, xlim )
+        ax.set_ylim( -ylim, ylim )
 
         ax.errorbar( self.yspi.fit_data['ud'] , self.yspi.fit_data.index,
                 xerr = self.yspi.fit_data['ud_err'], fmt='o', color = 'Gray', mec = 'None' )

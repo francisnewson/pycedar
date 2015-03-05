@@ -1,0 +1,303 @@
+# OpticalRayTracer 8.9
+# http://arachnoid.com/OpticalRayTracer
+# 2015.02.14 09:49:07 GMT
+
+program {
+  antialias                 = true
+  askBeforeDeleting         = true
+  beamAngle                 = 0.000000e+00
+  beamCount                 = 10
+  beamWidth                 = 1
+  clipboardGraphicXSize     = 1280
+  colorArrow                = -2147483393
+  colorBaseline             = -16760832
+  colorBeam                 = -4194304
+  colorGrid                 = 1086374080
+  colorHighBackground       = -1
+  colorLensOutline          = 276865279
+  colorLensSelected         = 268484608
+  colorLightSource          = -16776961
+  colorLowBackground        = -16777216
+  colorTerminator           = -16777216
+  decimalPlaces             = 4
+  defaultWindowHeight       = 600
+  defaultWindowWidth        = 900
+  dispScale                 = 0.002956
+  dispersionBeams           = 4
+  divergingSource           = false
+  helpScrollPos             = 0
+  interLensEpsilon          = 1.000000e-06
+  intersectionArrowSize     = 0.050000
+  inverse                   = false
+  maxIntersections          = 64
+  selectedComponent         = 4
+  selectedTab               = 0
+  showControls              = true
+  showGrid                  = true
+  snapValue                 = 0.500000
+  surfEpsilon               = 5.000000e-04
+  tableLineLimit            = 1000
+  virtualSpaceSize          = 1000.000000
+  windowX                   = 100
+  windowY                   = 100
+  xBeamRotationPlane        = 0.000000e+00
+  xBeamSourceRefPlane       = -30.000000
+  xOffset                   = -42.297946
+  yEndBeamPos               = 8.000000
+  yOffset                   = -39.506362
+  yStartBeamPos             = -8.000000
+}
+
+object {
+  active                    = true
+  angle                     = 0.000000e+00
+  centerThickness           = 0.000000e+00
+  dispersion                = 100.000000
+  function                  = 1
+  ior                       = 1.520000
+  leftCurvature             = 0
+  leftSphereRadius          = -2000.000000
+  leftZValue                = 20.000000
+  lensRadius                = 300.000000
+  name                      = Mirror 1
+  rightCurvature            = 0
+  rightSphereRadius         = -2000.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.100000
+  xPos                      = 100.000000
+  yPos                      = 0.000000e+00
+}
+
+object {
+  active                    = true
+  angle                     = 3.600000
+  centerThickness           = 0.100000
+  dispersion                = 59.000000
+  function                  = 1
+  ior                       = 1.520000
+  leftCurvature             = 3
+  leftSphereRadius          = 20.000000
+  leftZValue                = 20.000000
+  lensRadius                = 9.000000
+  name                      = Mirror 2
+  rightCurvature            = 3
+  rightSphereRadius         = 20.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.100000
+  xPos                      = 40.000000
+  yPos                      = -9.000000
+}
+
+object {
+  active                    = true
+  angle                     = 0.000000e+00
+  centerThickness           = 0.100000
+  dispersion                = 59.000000
+  function                  = 1
+  ior                       = 1.520000
+  leftCurvature             = 3
+  leftSphereRadius          = 40.000000
+  leftZValue                = 20.000000
+  lensRadius                = 40.000000
+  name                      = Mirror 3
+  rightCurvature            = 3
+  rightSphereRadius         = 40.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.100000
+  xPos                      = -71.000000
+  yPos                      = 0.000000e+00
+}
+
+object {
+  active                    = true
+  angle                     = 0.000000e+00
+  centerThickness           = 0.100000
+  dispersion                = 59.000000
+  function                  = 1
+  ior                       = 1.520000
+  leftCurvature             = 3
+  leftSphereRadius          = 6.000000
+  leftZValue                = 20.000000
+  lensRadius                = 2.000000
+  name                      = Mirror 4
+  rightCurvature            = 3
+  rightSphereRadius         = 6.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.100000
+  xPos                      = 100.000000
+  yPos                      = 0.000000e+00
+}
+
+object {
+  active                    = true
+  angle                     = 0.000000e+00
+  centerThickness           = 11.145618
+  dispersion                = 20.000000
+  function                  = 0
+  ior                       = 1.520000
+  leftCurvature             = 1
+  leftSphereRadius          = 900.000000
+  leftZValue                = 20.000000
+  lensRadius                = 100.000000
+  name                      = Lens 1
+  rightCurvature            = 1
+  rightSphereRadius         = 900.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.000000e+00
+  xPos                      = -90.000000
+  yPos                      = 0.000000e+00
+}
+
+object {
+  active                    = true
+  angle                     = 45.000000
+  centerThickness           = 24.140821
+  dispersion                = 1.000000
+  function                  = 1
+  ior                       = 1.000000
+  leftCurvature             = 0
+  leftSphereRadius          = 110.000000
+  leftZValue                = 20.000000
+  lensRadius                = 50.000000
+  name                      = Mirror 5
+  rightCurvature            = 0
+  rightSphereRadius         = 110.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.100000
+  xPos                      = -376.500000
+  yPos                      = -60.000000
+}
+
+object {
+  active                    = true
+  angle                     = -3.600000
+  centerThickness           = 0.100000
+  dispersion                = 59.000000
+  function                  = 1
+  ior                       = 1.520000
+  leftCurvature             = 3
+  leftSphereRadius          = 10.000000
+  leftZValue                = 20.000000
+  lensRadius                = 9.000000
+  name                      = Mirror 6
+  rightCurvature            = 3
+  rightSphereRadius         = 10.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.100000
+  xPos                      = 40.000000
+  yPos                      = 9.000000
+}
+
+object {
+  active                    = true
+  angle                     = 315.000000
+  centerThickness           = 24.140821
+  dispersion                = 1.000000
+  function                  = 1
+  ior                       = 1.000000
+  leftCurvature             = 0
+  leftSphereRadius          = 110.000000
+  leftZValue                = 20.000000
+  lensRadius                = 50.000000
+  name                      = Mirror 5
+  rightCurvature            = 0
+  rightSphereRadius         = 110.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.100000
+  xPos                      = -376.500000
+  yPos                      = 60.000000
+}
+
+object {
+  active                    = true
+  angle                     = 0.000000e+00
+  centerThickness           = 0.100000
+  dispersion                = 59.000000
+  function                  = 2
+  ior                       = 1.520000
+  leftCurvature             = 3
+  leftSphereRadius          = 62.000000
+  leftZValue                = 20.000000
+  lensRadius                = 60.000000
+  name                      = Mirror 7
+  rightCurvature            = 3
+  rightSphereRadius         = 62.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.100000
+  xPos                      = -282.500000
+  yPos                      = 0.000000e+00
+}
+
+object {
+  active                    = true
+  angle                     = 0.000000e+00
+  centerThickness           = 0.100000
+  dispersion                = 59.000000
+  function                  = 2
+  ior                       = 1.520000
+  leftCurvature             = 3
+  leftSphereRadius          = 62.000000
+  leftZValue                = 20.000000
+  lensRadius                = 34.000000
+  name                      = Mirror 7
+  rightCurvature            = 3
+  rightSphereRadius         = 62.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.100000
+  xPos                      = -282.500000
+  yPos                      = 100.000000
+}
+
+object {
+  active                    = true
+  angle                     = 0.000000e+00
+  centerThickness           = 0.100000
+  dispersion                = 59.000000
+  function                  = 2
+  ior                       = 1.520000
+  leftCurvature             = 3
+  leftSphereRadius          = 62.000000
+  leftZValue                = 20.000000
+  lensRadius                = 34.000000
+  name                      = Mirror 7
+  rightCurvature            = 3
+  rightSphereRadius         = 62.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.100000
+  xPos                      = -282.500000
+  yPos                      = -100.000000
+}
+
+object {
+  active                    = true
+  angle                     = 0.000000e+00
+  centerThickness           = 9.998679e-06
+  dispersion                = 59.000000
+  function                  = 0
+  ior                       = 1.520000
+  leftCurvature             = 0
+  leftSphereRadius          = 10000000.000000
+  leftZValue                = 20.000000
+  lensRadius                = 10.000000
+  name                      = Lens 2
+  rightCurvature            = 0
+  rightSphereRadius         = 10000000.000000
+  rightZValue               = 20.000000
+  symmetrical               = true
+  thickness                 = 0.000000e+00
+  xPos                      = -32.000000
+  yPos                      = 0.000000e+00
+}
+
+

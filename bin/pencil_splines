@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+import pycedar
+import gzip
+import pandas as pd
+import logging
+import matplotlib.pyplot as plt
+import cProfile
+import sys
+import numpy as np
+import os.path as osp
+
+pencil_ysplines = pycedar.load_templates_csv(
+        open( 'data/pencil_yscan/all.csv' ) ).loc[ 1000 , : , :  ]
+
+asym_aligner = pycedar.AsymAligner(
+        wideset = None,
+        spline_range = 1000,
+        spline_smoothing = 3,
+        spline_step = 100 )
+
+asym_aligner.do_corrections  = False
+
+asym_aligner.set_templates( pencil_ysplines )
+asyms = asym_aligner.prepare_data_sets( asym_aligner.templates )
+
+asyms.reset_index(level=1, inplace=True)
+
+
+print( asyms )
+
+fig = plt.figure( figsize = [6, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+ax.grid( True )
+
+ax.yaxis.set_major_formatter(pycedar.plotting.format_mm)
+ax.set_ylabel( 'Y - Misalignment' )
+ax.set_xlabel( 'Measured UD Assymetry' )
+
+ax.set_title( 'Pencil beam - {0} mm diaphragm'.format( 0.001 * 1000  ) )
+ax.errorbar( asyms['ud'], asyms['y'], xerr = asyms['ud_err'] )
+plt.savefig( 'output/spline_shapes/pencil_yscan.pdf', format = 'pdf' , transparent = 'true' )
+ax.cla()
+

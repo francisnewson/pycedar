@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.optimize as op
+
+def gaus( mu, sig, x ):
+    return np.exp( - ( x - mu )**2 / ( 2 * sig**2 ) )
+
+def fit_func(  x , *p ):
+    res =  p[0]*gaus( p[1], p[2], x ) + p[3]*gaus( p[4], p[5], x )
+    return res
+
+def simple_func(  x , *p ):
+    res =  p[0]*gaus( p[1], p[2], x ) 
+    return res
+
+def poly_func(  x , *p ):
+    v = ( x - 1620.0 ) 
+    res = sum([ par * v**i for i, par in enumerate(p) ])
+    return res
+
+def odd_func(  x , *p ):
+    v = ( x - 1620.0 )
+    res =  p[0]*gaus( p[1], p[2], x ) + p[3]*v**2 + p[4]*v + p[5]
+    return res
+
+raw_dt = pd.read_csv( 'data/pion_peak/pion_pscan.dat', delim_whitespace = True, names = ['pressure', 'hits', 'err', '6fold', '7fold', '8fold' ] )
+
+#dt = raw_dt[ (raw_dt['pressure'] > 1621 )& (raw_dt['pressure'] < 1659 ) ]
+dt = raw_dt[ (raw_dt['pressure'] > 1600 )& (raw_dt['pressure'] < 1680 ) ]
+
+print ( dt.dtypes )
+
+print( "Fitting simple_func" )
+
+col = '6fold'
+
+try:
+    #p0 = [ 20.0, 1640.0, 20.0 ]
+    p0 = [ 1.0, 1640.0, 20.0 ]
+    #p1, success = op.curve_fit(  simple_func, dt['pressure'].values, dt['hits'].values, p0, dt['err'].values )
+    p1, success = op.curve_fit(  simple_func, dt['pressure'].values, dt[col].values, p0,)
+except RuntimeError:
+    p1 = None
+print( p1 )
+
+print( "Fitting fit_func" )
+try:
+    #q0 = [ 15.0, 1624.0, 20.0, 15.0, 1640.0, 25.0 ]
+    q0 = [ 1.0, 1624.0, 20.0, 1.0, 1640.0, 25.0 ]
+    #q1, success = op.curve_fit(  fit_func, dt['pressure'].values, dt['hits'].values, q0, dt['err'].values )
+    q1, success = op.curve_fit(  fit_func, dt['pressure'].values, dt[col].values, q0, )
+except RuntimeError:
+    q1 = None
+print( q1 )
+
+print( "Fitting odd_func" )
+try:
+    #r0 = [ 15.0, 1624.0, 20.0, 1, 1, 1]
+    #r1, success = op.curve_fit(  odd_func, dt['pressure'].values, dt['hits'].values, r0, dt['err'].values )
+    r0 = [ 1.0, 1624.0, 1.0, 1, 1, 1]
+    r1, success = op.curve_fit(  odd_func, dt['pressure'].values, dt[col].values, r0,)
+except RuntimeError:
+    r1 = None
+print( r1 )
+
+print( "Fitting poly_func" )
+try:
+    s0 = [ 1 for _ in xrange( 9 ) ]
+    #s1, success = op.curve_fit(  poly_func, dt['pressure'].values, dt['hits'].values, s0, dt['err'].values )
+    s1, success = op.curve_fit(  poly_func, dt['pressure'].values, dt[col].values, s0, )
+except RuntimeError:
+    s1 = None
+print( s1 )
+
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+#ax.errorbar( raw_dt['pressure'], raw_dt['hits'], yerr = raw_dt['err'], fmt = 'o', mec = 'None' )
+ax.plot( raw_dt['pressure'], raw_dt[col], 'o', mec = 'None' )
+
+pts = np.linspace( 1620, 1660, 100 )
+
+if p1 is not None:
+    pfit_func = lambda x : simple_func( x, *p1 )
+    ax.plot( pts, pfit_func( pts ),  '-' , label = 'simple' )
+
+if q1 is not None:
+    qfit_func = lambda x : fit_func( x, *q1    )
+    ax.plot( pts, qfit_func( pts ),  '-' , label = 'fit' )
+
+if r1 is not None:
+    rfit_func = lambda x : odd_func( x, *r1    )
+    ax.plot( pts, rfit_func( pts ),  '-' , label = 'odd' )
+
+if s1 is not None:
+    sfit_func = lambda x : poly_func( x, *s1   )
+    ax.plot( pts, sfit_func( pts ),  '-' , label = 'poly' )
+
+ax.set_xlim( [1600, 1680])
+#ax.set_ylim( [10, 25])
+ax.set_ylim( [0, 1])
+ax.grid( 'on' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+
+plt.savefig( 'output/pion_peak/pscan.pdf', format = 'pdf', transparent = True )

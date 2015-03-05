@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+import os
+import os.path as osp
+import re
+import pandas as pd
+
+def extract_pos_id( filename ):
+    m = re.search( r"Box(\d).*_PM(\d+)", filename )
+    sect = m.group(1)
+    row_col = m.group(2)
+    return 100*int(sect) + int(row_col)
+
+def extract_params( f ):
+    serial, eq = None, None
+    for line in f:
+        if "Serial Number" in line:
+            clean_line = re.sub( '\t+| +', '' , line.strip() )
+            serial =  re.split( '&|\\\\', clean_line )[1]
+        if "Equalization" in line:
+            clean_line = re.sub( '\t+| +', '' , line.strip() )
+            eq =  re.split( '&|\\\\', clean_line )[1]
+
+    return serial, eq
+
+
+
+pmt_serial = []
+pmt_pos = []
+pmt_eq = []
+
+data_dir =  'data/tonino/rawtex/' 
+
+#get list of files
+for filename in os.listdir( data_dir):
+    if ( 'Old' in filename):
+        continue
+    if  filename.startswith( '.' ) :
+        continue
+    pos = extract_pos_id( filename )
+    filepath = osp.join( data_dir, filename )
+    serial, eq = extract_params( open( filepath ) )
+
+    pmt_serial.append( serial )
+    pmt_pos.append( pos )
+    pmt_eq.append( eq )
+
+
+ds = pd.DataFrame( {'serial_number' : pmt_serial, 'equalization' : pmt_eq }, index = pd.Series(  pmt_pos ) )
+ds.index.name = 'position'
+print( ds )
+ds.to_csv( 'params/tonino.csv', sep = ' ' )

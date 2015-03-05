@@ -9,11 +9,9 @@ import sys
 import numpy as np
 import os.path as osp
 
-def plot_splines( m, ax ):
+def plot_splines( m, ax, corr = True ):
     spline_templates = pycedar.load_templates_csv(
-            m['spline_data']).loc[ m['spline_diaphragm'], : , :]
-
-    print( spline_templates )
+            gzip.open(m['spline_data'])).loc[ m['spline_diaphragm'], : , :]
 
     asym_aligner = pycedar.AsymAligner(
             wideset = m['wide_data'], 
@@ -21,21 +19,25 @@ def plot_splines( m, ax ):
             spline_smoothing = m['spline_smoothing'],
             spline_step = m['spline_step'])
 
+    asym_aligner.do_corrections = corr
+
     xfile = osp.join( m['ofolder'], m['prefix'] + 'xfile.pdf' )
     yfile = osp.join( m['ofolder'], m['prefix'] + 'yfile.pdf' )
 
     asym_aligner.set_templates( spline_templates )
     asym_aligner.prepare_templates()
 
+    #print( asym_aligner.template_group_totals )
+
     ax.grid( True )
-    asym_aligner.plot_xinvspline( ax )
-    ax.set_title( '{0} mm diaphragm'.format( 0.001 * 1500  ) )
+    asym_aligner.plot_xinvspline( ax, m['xlim'], m['ylim']  )
+    ax.set_title( '{0} mm diaphragm'.format( 0.001 * m['spline_diaphragm']  ) )
     plt.savefig( xfile, format = 'pdf' , transparent = 'true' )
     ax.cla()
 
     ax.grid( True )
-    ax.set_title( '{0} mm diaphragm'.format( 0.001 * 1500  ) )
-    asym_aligner.plot_yinvspline( ax )
+    ax.set_title( '{0} mm diaphragm'.format( 0.001 * m['spline_diaphragm']  ) )
+    asym_aligner.plot_yinvspline( ax, m['xlim'], m['ylim']  )
     plt.savefig( yfile, format = 'pdf' , transparent = 'true' )
     ax.cla()
 
@@ -52,15 +54,43 @@ base_map =  {
         'spline_smoothing' : 80,
         'spline_step' :  50,
         'ofolder' : 'output/spline_shapes',
+        'xlim' : 0.05,
+        'ylim' : 2000,
         }
 
 fig = plt.figure( figsize = [6, 6] )
 fig.set_tight_layout(True)
 ax = fig.add_subplot( 111 )
 
+plan_1000 = base_map.copy()
+plan_1000['spline_data'] = 'data/align_csv/splines_kaonp_1710_1000.csv.gz'
+plan_1000['spline_diaphragm'] = 1000
+plan_1000['prefix'] = 'spline_1000_stat_'
+plot_splines( plan_1000, ax )
+
+wplan_1000 = base_map.copy()
+wplan_1000['spline_data'] = 'data/align_csv/kaonp_1710_1000_52.csv.gz'
+wplan_1000['spline_diaphragm'] = 1000
+wplan_1000['prefix'] = 'spline_1000_wide_'
+wplan_1000['spline_range'] = 2000
+wplan_1000['spline_step'] = 200
+wplan_1000['xlim'] = 0.1
+plot_splines( wplan_1000, ax )
+
 plan_1500 = base_map.copy()
-plan_1500['spline_data'] = 'data/align_csv/kaonp_1710_1500_splines.csv.gz'
+plan_1500['spline_data'] = 'data/align_csv/splines_kaonp_1710_1500.csv.gz'
 plan_1500['spline_diaphragm'] = 1500
 plan_1500['prefix'] = 'spline_1500_stat_'
-
 plot_splines( plan_1500, ax )
+
+plan_800 = base_map.copy()
+plan_800['spline_data'] = 'data/align_csv/splines_kaonp_1710_800.csv.gz'
+plan_800['spline_diaphragm'] = 800
+plan_800['prefix'] = 'spline_800_stat_'
+plot_splines( plan_800, ax )
+
+plan_1000_sym = base_map.copy()
+plan_1000_sym['spline_data'] = 'data/align_csv/splines_kaonp_1710_1000_sym.csv.gz'
+plan_1000_sym['spline_diaphragm'] = 1000
+plan_1000_sym['prefix'] = 'spline_1000_stat_sym'
+plot_splines( plan_1000_sym, ax, False )

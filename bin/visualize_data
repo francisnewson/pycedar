@@ -1,0 +1,103 @@
+#!/usr/bin/env python
+import pycedar
+import gzip
+import pandas as pd
+import logging
+import matplotlib.pyplot as plt
+import cProfile
+import sys
+import numpy as np
+import os.path as osp
+import os
+import errno
+import argparse
+import yaml
+
+#Just the plots which can be produced quickly
+
+#--------------------------------------------------
+# PARSE ARGS
+#--------------------------------------------------
+
+#get input parameters
+parser = argparse.ArgumentParser()
+parser.add_argument( '-i', '--input-file',  required = True ,help = 'input data' )
+
+parser.add_argument( '-p', '--prefix', required = True, help = 'ouput prefix' )
+parser.add_argument( '-k', '--index-key', help = 'index key' )
+parser.add_argument( '-c', '--index-column',  help = 'index key' )
+
+parser.add_argument( '-d', '--diaphragm',  help = 'Diaphragm aperture' )
+parser.add_argument( '-x', '--xpos',  help = 'X position' )
+parser.add_argument( '-y', '--ypos',  help = 'Y position' )
+
+args = parser.parse_args()
+print( args )
+
+output_prefix = args.prefix
+data_file =  args.input_file
+ignore_pmts = []
+
+index_col = args.index_column
+index_key = args.index_key
+
+#--------------------------------------------------
+# IMPORT DATA
+#--------------------------------------------------
+
+logging.info('Importing data' )
+pycedar.mkdir_p( output_prefix )
+title = osp.basename( output_prefix).replace( '_', ' ')
+
+if 'gz' in data_file:
+    open_data = gzip.open( data_file )
+else:
+    open_data = open( data_file )
+
+#Load template and test datasets
+
+if args.index_column:
+    all_data = pycedar.load_templates_csv( 
+          open_data , ignore_pmts = ignore_pmts,
+            index_col = index_col )
+    data = all_data.loc[index_key]
+else:
+    all_data = pycedar.load_templates_csv( 
+           open_data, ignore_pmts = ignore_pmts,)
+    data = all_data.loc[ int(args.diaphragm) ,int( args.xpos ), int(args.ypos) ]
+
+#histogram
+fig = plt.figure( figsize = [12, 6] )
+fig.set_tight_layout(True)
+
+f, (ax1, ax2) = plt.subplots( 2, 1 )
+ax1.set_xlim( 100, 500 )
+ax2.set_xlim( 500, 900 )
+
+ax1.set_title( title )
+
+for axi in ( ax1, ax2 ):
+    axi.bar( data.index, data.values, 
+            color = 'Red', ec = 'None', alpha = 0.8 )
+hist_plot_file = osp.join( output_prefix, 'hist.pdf' )
+plt.savefig( hist_plot_file , format = 'pdf', transparent  = 'true' )
+
+plt.cla()
+plt.clf()
+
+#projection
+fig = plt.figure( figsize = [8, 6] )
+ax = fig.add_subplot( 111 )
+
+proj_map = pycedar.make_proj_map()
+
+ax.set_xlabel( 'x (cm)' )
+ax.set_ylabel( 'y (cm)' )
+ax.set_aspect( 'equal' )
+ax.set_title( title  )
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c =  data, edgecolor = 'None' )
+cbar = plt.colorbar( mappable = plotted )
+
+proj_plot_file = osp.join( output_prefix, 'proj.pdf' )
+plt.savefig( proj_plot_file, format = 'pdf', transparent = 'true' )
+cbar.remove()
