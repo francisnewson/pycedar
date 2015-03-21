@@ -90,6 +90,7 @@ template_slice = slice( -(search_radius+200 ), search_radius + 200 )
 
 real_data_file = config['files']['data']
 output_prefix = config['files']['output_prefix']
+data_label = config['files']['label']
 mkdir_p( output_prefix )
 
 #--------------------------------------------------
@@ -98,11 +99,16 @@ mkdir_p( output_prefix )
 
 logging.info('Importing data' )
 
+f = open
+if 'gz' in template_data_file:
+    f = gzip.open
+
 #Load template and test datasets
 all_pmt_template_data = pycedar.load_templates_csv( 
-        gzip.open( template_data_file ), ignore_pmts = ignore_pmts ).loc[mydiaphragm, :, : ]
+        f( template_data_file ), ignore_pmts = ignore_pmts ).loc[mydiaphragm, :, : ]
 
 #Restrict to my slice
+all_pmt_template_data = all_pmt_template_data.sortlevel()
 pmt_template_data = all_pmt_template_data.loc[ (template_slice, template_slice) , :]
 
 #Load wide dataset for asym corrections
@@ -143,12 +149,12 @@ chi2_aligner_data = chi2_aligner.prepare_data_sets(real_data)
 
 #raw alignment
 logging.info('Computing alignment' )
-chi2_aligner.compute_alignment( chi2_aligner_data.loc['data'] )
+chi2_aligner.compute_alignment( chi2_aligner_data.loc[data_label] )
 print( '{0:20}: {1}'.format( "CHI2", chi2_aligner.best_xy() ))
 
 #interpolated alignment
 chi2_aligner.interpolate = True
-chi2_aligner.compute_alignment( chi2_aligner_data.loc['data'] )
+chi2_aligner.compute_alignment( chi2_aligner_data.loc[data_label] )
 print( '{0:20}: {1}'.format( "CHI2(interpolated)", chi2_aligner.best_xy() ))
 
 #plot chi2 plot
@@ -157,6 +163,7 @@ dtchi2 = chi2_aligner.last_result
 set_up_ax( ax, 1000 )
 
 minlnchi2 = np.log( dtchi2['chi2'].min() )
+print( minlnchi2 )
 plotted = ax.scatter( dtchi2['x'], dtchi2['y'], c =  np.log(dtchi2['chi2'] ),
         marker = 's', s = 75 , edgecolor = 'None',
         cmap = 'YlGnBu_r', vmin = minlnchi2 , vmax = minlnchi2+0.2 )
@@ -184,8 +191,8 @@ asym_aligner.prepare_templates()
 asym_aligner_data = asym_aligner.prepare_data_sets(real_data)
 
 logging.info('Computing alignment' )
-print( asym_aligner_data.loc['data'] )
-asym_aligner.compute_alignment( asym_aligner_data.loc['data'] )
+print( asym_aligner_data.loc[data_label] )
+asym_aligner.compute_alignment( asym_aligner_data.loc[data_label] )
 print( '{0:20}: {1}'.format( "ASYM", asym_aligner.best_xy() ))
 
 #plot assymetry curves
@@ -216,10 +223,11 @@ geom_aligner.prepare_templates()
 geom_aligner_data = geom_aligner.prepare_data_sets(real_data) 
 
 print( geom_aligner_data )
-geom_aligner.compute_alignment( geom_aligner_data.loc['data'] )
+geom_aligner.compute_alignment( geom_aligner_data.loc[data_label] )
 print( '{0:20}: {1}'.format( "GEOM", geom_aligner.best_xy() ))
 
-plotted =  geom_aligner.plot_hitmap( ax, real_data )
+print( real_data )
+plotted =  geom_aligner.plot_hitmap( ax, real_data.loc[data_label] )
 cbar = plt.colorbar( mappable = plotted )
 hitmap_plot_file = osp.join( output_prefix, 'hitmap.pdf' )
 plt.savefig( hitmap_plot_file , format = 'pdf', transparent = 'true' )
@@ -227,14 +235,12 @@ plt.savefig( hitmap_plot_file , format = 'pdf', transparent = 'true' )
 cbar.remove()
 plt.cla()
 
-
-
 #--------------------------------------------------
 # MISCELLANEOUS PLOTS
 #--------------------------------------------------
 
 logging.info('Extra plots') 
-pycedar.plot_dataset(ax, real_data.loc['data'] )
+pycedar.plot_dataset(ax, real_data.loc[data_label] )
 fig.set_size_inches( 20, 6, )
 hist_plot_file = osp.join( output_prefix, 'hist.pdf' )
 plt.savefig( hist_plot_file , format = 'pdf', transparent = 'true' )

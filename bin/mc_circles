@@ -1,0 +1,150 @@
+#!/usr/bin/env python
+import numpy as np
+import numpy.random
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import pandas as pd
+import brewer2mpl
+import sys
+import pycedar
+import progressbar
+
+def new_theta( theta):
+    if theta < 0:
+        theta += 2 *np.pi
+    return theta
+
+def generate_points ( r_min, r_max, shift_x, shift_y, n):
+    r2_min = r_min**2
+    r2_max = r_max**2
+
+    #get random uniform numbers
+    r_uniform = np.random.uniform( 0, 1, n )
+    theta = np.random.uniform( 0, 2 * np.pi , n )
+
+    #get radial distribution
+    A = 2. / ( r2_max - r2_min)
+    r2 =  2. * r_uniform / A + r2_min
+    r = np.sqrt( r2 )
+
+    #get angular distrbution
+    cos_theta = np.cos( theta )
+    sin_theta = np.sin( theta )
+
+    #convert to xy coords
+    x = np.multiply( r , cos_theta ) + shift_x
+    y = np.multiply( r , sin_theta ) + shift_y
+
+    shift_r2 = x**2 + y**2
+    shift_r = np.sqrt( shift_r2 )
+    shift_theta = np.arctan2( y, x )
+    shift_theta = [ 2 * np.pi + t if t < 0 else t for t in shift_theta ]
+
+    #create dataframe
+    points = pd.DataFrame( { 'x' : x, 'y' : y, 'r2' : shift_r2 , 'r' : shift_r,  'theta' : shift_theta } )
+
+    return points.sort( 'theta')
+
+def get_sectors_rejects( points, r_min, r_max ):
+    r2_min = r_min**2
+    r2_max = r_max**2
+
+    #filter
+    accept = (points['r2'] > r2_min) & (points['r2'] < r2_max )
+
+    accept_points = points[ accept ]
+    reject_points = points[ np.invert(accept) ]
+
+    centres = [ np.pi / 8 + i%8 * np.pi / 4 for i in range( 1, -8, -1 ) ]
+
+    accept_sectors = [ accept_points[ 
+        (accept_points['theta'] > p0 - np.pi / 8 )  
+        & (accept_points['theta'] < p0 + np.pi / 8 ) ] for p0 in centres ]
+
+    return accept_sectors, reject_points
+
+def plot_points( ax, accept_sectors, reject_points, r_min, r_max, **kwargs ):
+    ax.set_xlim( [-150, 150 ] )
+    ax.set_ylim( [-150, 150 ] )
+
+    #Accepted sectors
+    colors = [ 'r', 'k', 'g', 'b' , 'g', 'b', 'g', 'b' ]
+    for asec, color in zip( accept_sectors, colors ):
+        ax.scatter( asec['x'], asec['y'], c = color, edgecolor = 'None', **kwargs )
+
+    reject_left = reject_points[ reject_points['x'] < 0 ] 
+    reject_right = reject_points[ reject_points['x'] > 0 ] 
+
+    #rejected points
+    ax.scatter( reject_left['x'], reject_left['y'], edgecolor = 'None', color = 'magenta' , **kwargs )
+    ax.scatter( reject_right['x'], reject_right['y'], edgecolor = 'None', color = 'orange', **kwargs  )
+
+    #diaphragm
+    inner_circle = mpatches.Circle( (0,0), r_min, ec = 'k', fc = 'None', ls = 'dashed', lw = 4  )
+    outer_circle = mpatches.Circle( (0,0), r_max, ec = 'k', fc = 'None', ls = 'dashed', lw = 4  )
+    ax.add_patch(inner_circle)
+    ax.add_patch(outer_circle)
+    return ax
+
+def get_asym( accept_sectors ):
+    acs = [ s.shape[0] for s in accept_sectors ]
+    sectors = dict([ (n+1,val) for n,val in enumerate( acs )] )
+    return pycedar.oct_asym( sectors )
+
+#MAIN
+rmin = 90
+rmax = 110
+
+shift_x = 0
+asyms = []
+yshifts = range( -20, 21 )
+
+asym = True
+
+if asym:
+    with progressbar.ProgressBar( maxval = len( yshifts) ) as pb:
+        for nb,shift_y in enumerate(yshifts):
+            pb.update( nb )
+            points = generate_points( r_min = rmin, r_max = rmax, shift_x = shift_x, shift_y = shift_y, n = 100000 )
+            accept_sectors, reject = get_sectors_rejects( points, r_min = rmin, r_max = rmax )
+            asym = get_asym( accept_sectors )
+            asym['y'] = shift_y
+            asyms.append( asym )
+
+dt_asym = pd.DataFrame( asyms )
+print( dt_asym )
+
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+ax.grid( 'on' )
+
+ax.set_title( 'R = 100, diagphragm = 20, ring width = 20' )
+
+ax.set_ylabel( 'UD asymmetry' )
+ax.set_xlabel( 'Misalignment in y' )
+
+ax.set_ylim([ -0.3, 0.3 ] )
+ax.set_xlim([ -20, 20 ] )
+
+ax.errorbar( x = dt_asym['y'], y = dt_asym['ud'], yerr = dt_asym['ud_err'] )
+
+plt.savefig( 'output/circles/wide_asym.pdf' , format = 'pdf', transparent = 'true')
+
+plot = False
+plot_example = True
+
+if plot_example:
+    fig = plt.figure( figsize = [8, 8] )
+    fig.set_tight_layout(True)
+    ax = fig.add_subplot( 111 )
+    ax.grid( 'on' )
+    ax.set_title( 'R = 100, diagphragm = 20, ring width = 20, dy = 10' )
+
+    points = generate_points( r_min = rmin, r_max = rmax, shift_x = 0, shift_y = 10 , n = 100000 )
+    accept_sectors, reject = get_sectors_rejects( points, r_min = rmin, r_max = rmax )
+
+    plot_points( ax, accept_sectors, reject, rmin, rmax, rasterized = True )
+    plt.savefig( 'output/circles/test_ring.pdf' , format = 'pdf', transparent = 'true')
+
+sys.exit(0)

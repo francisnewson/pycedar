@@ -1,0 +1,199 @@
+#!/usr/bin/env python
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.optimize as op
+import scipy.special
+import math
+
+do_log = True
+
+def mc_err( eff ):
+    return 1 / np.sqrt( 1000 ) * np.sqrt( eff * ( 1 - eff ) )
+
+def dt_err( eff ):
+    return 1 / np.sqrt( 100000 ) * np.sqrt( eff * ( 1 - eff ) )
+
+def read_coinc( file_name, label ):
+    dt = pd.read_csv( file_name, delim_whitespace = True,
+        names = ['pressure', 'hits', 'err', '6fold', '7fold', '8fold' ] )
+    dt['diaphragm'] = label
+    dt['6folderr'] = mc_err( dt['6fold'] )
+    return dt
+
+def line_fun( x, *p ):
+    return p[0] + p[1]*x
+
+def double_erf( x, *p ):
+    amp = 0.5  * p[0]
+    centre = p[1]
+    gap = p[2]
+    edge = p[3]
+    ped = p[4]
+    u = (x - centre) / edge
+    return  ped + amp * ( scipy.special.erf( u + gap/edge ) + scipy.special.erf( - ( u - gap/edge ) ) )
+
+def double_fit(  dt, col, err,  fun, pars, min_p, max_p ):
+    fit_dt = dt[ ( dt['pressure'] > min_p ) & ( dt['pressure'] < max_p ) ]
+    p1, pcov = op.curve_fit( fun, dt['pressure'].values, dt[col].values, pars, dt[err].values )
+    def fit_fun(x):
+        return fun( x, *p1 )
+    return p1, fit_fun, pcov
+
+def print_pars( p ):
+    print( 'amplitude: {0}\ncentre: {1}\ngap: {2}\nedge: {3}\nped: {4}'.format( *p ) )
+
+
+raw_dt_1000 = read_coinc( 'data/pion_peak/pion_pscan_1000.dat', 1000 )
+raw_dt_1500 = read_coinc( 'data/pion_peak/pion_pscan_1500.dat', 1500 )
+raw_dt_2000 = read_coinc( 'data/pion_peak/pion_pscan_2000.dat', 2000 )
+
+dt_1000 = raw_dt_1000[ raw_dt_1000['6folderr'] > 1e-6 ]
+dt_1500 = raw_dt_1500[ raw_dt_1500['6folderr'] > 1e-6 ]
+dt_2000 = raw_dt_2000[ raw_dt_2000['6folderr'] > 1e-6 ]
+
+dt_fit_pars_1000, dt_fit_fun_1000, dt_cov_1000 = double_fit( dt_1000,  '6fold','6folderr',  double_erf, [ 1, 1642, 20, 5, 0 ], 1610, 1670 )
+dt_fit_pars_1500, dt_fit_fun_1500, dt_cov_1500 = double_fit( dt_1500,  '6fold','6folderr',  double_erf, [ 1, 1642, 20, 5, 0 ], 1600, 1670 )
+dt_fit_pars_2000, dt_fit_fun_2000, dt_cov_2000 = double_fit( dt_2000,  '6fold','6folderr',  double_erf, [ 1, 1642, 20, 5, 0 ], 1600, 1680 )
+
+np.set_printoptions(precision= 3 )
+
+print( 'MC 1000um' )
+print_pars( dt_fit_pars_1000 )
+print( dt_cov_1000 )
+print( np.sqrt(np.diag(dt_cov_1000)) )
+print( 'MC 1500um' )
+print_pars( dt_fit_pars_1500 )
+print( dt_cov_1500 )
+print( np.sqrt(np.diag(dt_cov_1500)) )
+print( 'MC 2000um' )
+print_pars( dt_fit_pars_2000 )
+print( dt_cov_2000 )
+print( np.sqrt(np.diag(dt_cov_2000)) )
+
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+ax.set_xlim( [1600, 1700])
+ax.set_xlabel( 'Pressure (mbar)' )
+ax.set_ylabel( 'Efficiency' )
+if do_log:
+    ax.set_yscale( 'log' )
+    ax.set_ylim( [1e-4, 5.0])
+else:
+    ax.set_ylim( [0, 1.2])
+ax.grid( 'on' )
+
+pts = np.linspace( 1600, 1700, 100 )
+
+for data, color, label in ( ( dt_1000, 'blue', '1.0mm' ), ( dt_1500, 'purple', '1.5mm'), ( dt_2000, 'red', '2.0mm' ) ):
+    ax.errorbar( data['pressure'] , data['6fold'], fmt = 'o', yerr = data['6folderr'] , mec = 'None', c = color, label = label )
+
+for fun, color, label in ( ( dt_fit_fun_1000, 'cyan', '1.0mm fit' ),
+        ( dt_fit_fun_1500, 'pink', '1.5mm fit '), ( dt_fit_fun_2000, 'orange', '2.0mm fit' ) ):
+    ax.plot(  pts, fun(pts), '-', mec = 'None', c = color, label = label )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+
+if do_log:
+    plt.savefig( 'output/pion_peak/doublediaphragm_log.pdf', format = 'pdf', transparent = True )
+else:
+    plt.savefig( 'output/pion_peak/doublediaphragm.pdf', format = 'pdf', transparent = True )
+
+plt.cla()
+
+ax.set_xlim( [1600, 1700])
+ax.set_xlabel( 'Pressure (mbar)' )
+ax.set_ylabel( 'Efficiency' )
+if do_log:
+    ax.set_yscale( 'log' )
+    ax.set_ylim( [1e-4, 1.0])
+else:
+    ax.set_ylim( [0, 1.2])
+ax.grid( 'on' )
+
+#real data
+dt_dt = pd.read_csv( 'data/pion_peak/data_pressure_scan.dat', delim_whitespace = True,
+    names = ['pressure', '6fold', '7fold', '8fold' ] )
+
+dt_dt['6folderr'] = dt_err( dt_dt['6fold'] )
+
+dt_fit_pars_dt, dt_fit_fun_dt, dt_cov_dt = double_fit( dt_dt,  '6fold', '6folderr', double_erf, [ 1, 1642, 20, 5, 0 ], 1620, 1680 )
+ax.errorbar( dt_dt['pressure'] , dt_dt['6fold'], yerr = dt_dt['6folderr'],  fmt = 'o', mec = 'None', c = 'black', label = 'data' )
+ax.plot(  pts, dt_fit_fun_dt(pts), '-', mec = 'None', c = 'orange', label = 'data fit' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+
+if do_log:
+    plt.savefig( 'output/pion_peak/data_doublediaphragm_log.pdf', format = 'pdf', transparent = True )
+else:
+    plt.savefig( 'output/pion_peak/data_doublediaphragm.pdf', format = 'pdf', transparent = True )
+
+print( 'data' )
+print_pars( dt_fit_pars_dt )
+
+plt.cla()
+ax.grid( 'on' )
+ax.set_xlim( [0, 3])
+ax.set_ylim( [0, 40])
+ax.set_xlabel( 'Diaphragm (mm)' )
+ax.set_ylabel( 'Gap param (mbar)' )
+
+dia = [1.0, 1.5, 2.0]
+gap = [ dt_fit_pars_1000[2], dt_fit_pars_1500[2], dt_fit_pars_2000[2] ] 
+err = [  np.sqrt(np.diag(dt_cov_1000))[2] , np.sqrt(np.diag(dt_cov_1500))[2] , np.sqrt(np.diag(dt_cov_2000))[2] ]
+
+init_line = [0.0, 15.0 ]
+line_par, line_pcov = op.curve_fit( line_fun, dia, gap, init_line, err )
+
+line_err = np.sqrt( np.diag(line_pcov ) )
+
+print( "LINE: ")
+print( line_par )
+print( line_err)
+
+def fit_line(x):
+    return line_fun( x, *line_par )
+
+def invert_line(y):
+    return ( y - line_par[0] ) / line_par[1] 
+
+def up_invert_line(y):
+    return ( y - line_par[0] + line_err[0]  ) / ( line_par[1] - line_err[1] )
+
+def down_invert_line(y):
+    return ( y - line_par[0] - line_err[0]  ) / ( line_par[1] + line_err[1] )
+
+dt_gap = dt_fit_pars_dt[2]
+dt_gap_err = np.sqrt( np.diag( dt_cov_dt))[2]
+dt_dia = invert_line( dt_gap)
+
+dt_dia_dwn = down_invert_line( dt_gap - dt_gap_err)
+dt_dia_up = up_invert_line( dt_gap + dt_gap_err)
+
+print( dt_cov_dt )
+print( np.sqrt(np.diag(dt_cov_dt)) )
+print( dt_gap_err)
+
+lpts = np.linspace( 0, 3, 150 )
+
+ax.errorbar( dia, gap, yerr = err, fmt = 'o', mec = 'None', label = 'MC points' )
+ax.plot( lpts, fit_line( lpts), '-', color = 'k', label = 'Straight line fit' )
+ax.plot( (0, 3.0), (dt_gap, dt_gap ), '--', color = 'DarkOrange',   label = 'Data point', lw = 1.5 )
+ax.plot( (0, 3.0), (dt_gap - dt_gap_err, dt_gap - dt_gap_err ), '--', color = 'DarkOrange', lw = 1.5)
+ax.plot( (0, 3.0), (dt_gap + dt_gap_err, dt_gap + dt_gap_err ), '--', color = 'DarkOrange', lw = 1.5 )
+
+ax.plot( (dt_dia, dt_dia), (0, 40 ), '--', color = 'DarkOrange', lw = 1.5  )
+ax.plot( (dt_dia_dwn, dt_dia_dwn), (0, 40 ), '--', color = 'DarkOrange', lw = 1.5 )
+ax.plot( (dt_dia_up, dt_dia_up), (0, 40 ), '--', color = 'DarkOrange', lw = 1.5)
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper left')
+
+plt.savefig( 'output/pion_peak/data_dia_corr.pdf', format = 'pdf', transparent = True )
+
+#fitting

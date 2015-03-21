@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+import os
+import os.path
+import re
+import sys
+
+def parse_filename( mc_filename ):
+    stem = os.path.splitext(os.path.basename( mc_filename))[0]
+    test_string = stem.replace( 'm' , '-').replace( 'p' , '+')
+    parser = re.compile( 'x_(\+|-)([0-9]+)_y_(-|\+)([0-9]+)_d_\+([0-9]+)' )
+    result =  parser.search( test_string )
+    info = list(result.groups())
+    info[0] = -1 if (info[0] == '-') else +1
+    info[2] = -1 if (info[2] =='-') else +1
+    info = map( int, info ) 
+    return info[0] * info[1], info[2]*info[3], info[4]
+
+def get_start_string(x, y, d ):
+    return '{0:10}{1:10}{2:10}'.format( d,x,y)
+
+def parse_y_filename( mc_filename ):
+    stem = os.path.splitext(os.path.basename( mc_filename))[0]
+    test_string = stem.replace( 'm' , '-').replace( 'p' , '+')
+    parser = re.compile( 'cedar_y(\+|-)([0-9]+)' )
+    result =  parser.search( test_string )
+    info = list(result.groups())
+    info[0] = -1 if (info[0] == '-') else +1
+    return 0, info[0] * info[1], 1000
+
+
+#input_dir = 'data/raw_multi_mc/mc_1710_1500_42'
+input_dir = 'data/multi_yscan/multi_gaus_yscan/'
+my_parser = parse_y_filename
+
+mc_list = [os.path.join( input_dir, x ) for x in  os.listdir(input_dir) ]
+
+output_dir = 'data/rejig_multi_yscan/multi_gaus_yscan/'
+
+fall = open( os.path.join( output_dir, 'all.dat' ), 'w' )
+fpmt5 = open( os.path.join( output_dir, 'pmt5.dat' ), 'w' )
+fpmt10 = open( os.path.join( output_dir, 'pmt10.dat' ), 'w' )
+fsec5 = open( os.path.join( output_dir, 'sec5.dat' ), 'w' )
+
+done_index = False
+
+for mc_dat in mc_list:
+    x, y, d = my_parser( mc_dat )
+    start_string = get_start_string( x, y, d )
+    title_string = '{0:>10}{1:>10}{2:>10}'.format( 'r', 'x', 'y' )
+    with open(mc_dat) as fin:
+        for line in fin:
+            content = line[11:]
+            if line.lstrip().startswith( 'index' ) and not done_index:
+                fall.write( title_string + content )
+                fpmt5.write( title_string + content )
+                fpmt10.write( title_string + content )
+                fsec5.write( title_string + content )
+                done_index = True
+
+            if line.lstrip().startswith( 'all' ):
+                fall.write( start_string + content )
+
+            if line.lstrip().startswith( '5pmts' ):
+                fpmt5.write( start_string + content )
+
+            if line.lstrip().startswith( '10pmts' ):
+                fpmt10.write( start_string + content )
+
+            if line.lstrip().startswith( '5sectors' ):
+                fsec5.write( start_string + content )

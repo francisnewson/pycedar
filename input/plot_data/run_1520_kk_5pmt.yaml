@@ -1,0 +1,23 @@
+files:
+    data: 'data/dt2014/multi_run_1520_karim_kaons.dat'
+    output_prefix: 'output/tests/run_1520_kk_5pmt'
+    label: '5pmts'
+
+templates:
+    ignore_pmts: []
+
+    template_file: 'data/rejig_multi_mc/mc_1710_1500_42/pmt5.dat'
+    diaphragm: 1500
+
+chi2:
+    plot_range: 1000
+    search_range: 800
+
+asym:
+    wide_template_file: 'data/align_csv/kaonp_1710_20000_42.csv.gz'
+    wide_diaphragm : 20000
+    spline_templates: 'data/align_csv/kaonp_1710_800_splines.csv.gz'
+    spline_diaphragm : 800
+    spline_smoothing : 80
+    spline_step : 50
+    spline_range : 1000

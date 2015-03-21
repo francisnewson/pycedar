@@ -4,13 +4,20 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.optimize as op
+import math
 
 def double_gaus(  x , *p ):
     res =  p[0]*gaus( p[1], p[2], x ) + p[3]*gaus( p[4], p[5], x )
     return res
 
 def poly_func(  x , *p ):
-    v = ( x - 1640.0 ) 
+    v = ( x - 1641.0 )  / 20
+    res = sum([ par * v**i for i, par in enumerate(p) ])
+    return res
+
+def split_func(  x , *p ):
+    v = ( x - p[0] )
+    width = p[1]
     res = sum([ par * v**i for i, par in enumerate(p) ])
     return res
 
@@ -19,7 +26,6 @@ def fit_curve( dt, col, fun, par ):
         p1, success = op.curve_fit( fun, dt['pressure'].values, dt[col].values, par)
     except RuntimeError:
         p1 = None
-    print p1
     return p1
 
 raw_dt = pd.read_csv( 'data/pion_peak/pion_pscan.dat', delim_whitespace = True, 
@@ -27,7 +33,7 @@ raw_dt = pd.read_csv( 'data/pion_peak/pion_pscan.dat', delim_whitespace = True,
 
 dt = raw_dt[ (raw_dt['pressure'] > 1600 ) & (raw_dt['pressure'] < 1680 ) ]
 
-pts = np.linspace( 1625, 1660, 100 )
+pts = np.linspace( 1600, 1680, 100 )
 
 fig = plt.figure( figsize = [8, 6] )
 fig.set_tight_layout(True)
@@ -41,12 +47,57 @@ for col, clr in zip( ['6fold', '7fold', '8fold' ],['blue', 'magenta', 'green' ] 
     ax.plot( raw_dt['pressure'], raw_dt[col], 'o', mec = 'None', c = 'k' )
     init_poly_par = [ 1 for x in range(9) ]
     poly_par = fit_curve( dt, col, poly_func, init_poly_par)
+    print(  poly_par )
 
     def f_poly(x):
         return poly_func( x, *poly_par )
 
     if poly_par is not None:
         ax.plot( pts, f_poly( pts ), '-', lw = 2, label = col + ' polynomial fit', c = clr )
+
+
+
+#NEW GAME
+max_six_fold = raw_dt['6fold'].max()
+six_fold_dt = raw_dt[ (raw_dt['pressure'] > 1620 ) & (raw_dt['pressure'] < 1660 ) 
+        & ( raw_dt['6fold'] < 0.85 * max_six_fold ) ]
+
+lower = six_fold_dt[ six_fold_dt['pressure'] < 1641 ]
+upper = six_fold_dt[ six_fold_dt['pressure'] > 1641 ]
+
+lower_start_par = [ 1 for x in range(2) ]
+upper_start_par = [ 1 for x in range(2) ]
+
+lower_par = fit_curve( lower, '6fold', poly_func, lower_start_par)
+upper_par = fit_curve( upper, '6fold', poly_func, upper_start_par)
+
+print( lower )
+print( lower_par )
+print( upper )
+print( upper_par )
+
+print( (dt['pressure'] * dt['6fold']).sum() / dt['6fold'].sum() )
+print( (dt['pressure'] * dt['7fold']).sum() / dt['7fold'].sum() )
+print( (dt['pressure'] * dt['8fold']).sum() / dt['8fold'].sum() )
+
+def f_lower_poly(x):
+    return poly_func( x, *lower_par )
+
+def f_upper_poly(x):
+    return poly_func( x, *upper_par )
+
+ax.plot( pts, f_lower_poly( pts ), '-', lw = 2, label = 'lower polynomial fit', c = 'red' )
+ax.plot( pts, f_upper_poly( pts ), '-', lw = 2, label = 'upper polynomial fit', c = 'orange' )
+
+#REJIG
+dt['norm_pressure_2' ] = np.square(dt['pressure'] - 1641)
+print ( dt )
+variance6 = (dt['norm_pressure_2'] * dt['6fold'] ).sum() / dt['6fold'].sum()
+variance7 = (dt['norm_pressure_2'] * dt['7fold'] ).sum() / dt['7fold'].sum()
+variance8 = (dt['norm_pressure_2'] * dt['8fold'] ).sum() / dt['8fold'].sum()
+print ( variance6, math.sqrt( variance6 ) )
+print ( variance7, math.sqrt( variance7 ) )
+print ( variance8, math.sqrt( variance8 ) )
 
 handles, labels = ax.get_legend_handles_labels()
 plt.legend( handles, labels , loc = 'upper right')

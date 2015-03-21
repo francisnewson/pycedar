@@ -1,0 +1,194 @@
+#!/usr/bin/env python
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.optimize as op
+import scipy.special
+import math
+
+do_log = False
+
+def read_coinc( file_name, label ):
+    dt = pd.read_csv( file_name, delim_whitespace = True,
+        names = ['pressure', 'hits', 'err', '6fold', '7fold', '8fold' ] )
+    dt['diaphragm'] = label
+    return dt
+
+def erf_func( x, *p ):
+    return 0.5*p[0]*( 1 + scipy.special.erf( (x - p[1]) / p[2] ) )
+
+def rev_erf_func( x, *p ):
+    return 0.5*p[0]*( 1 + scipy.special.erf( (p[1]-x ) / p[2] ) )
+
+def double_erf( x, *p ):
+    amp = 0.5  * p[0]
+    centre = p[1]
+    gap = p[2]
+    edge = p[3]
+    ped = p[4]
+    u = (x - centre) / edge
+    return  ped + amp * ( scipy.special.erf( u + gap/edge ) + scipy.special.erf( - ( u - gap/edge ) ) )
+
+def lower_side( dt, col, center = 1641, max_cut = 0.99 ):
+    max_eff = dt[col].max()
+    lower = dt[ ( dt[col] < max_cut * max_eff ) & ( dt['pressure'] < center -1 ) ]
+    return lower
+
+def upper_side( dt, col, center = 1641, max_cut = 0.99 ):
+    max_eff = dt[col].max()
+    upper = dt[ ( dt[col] < max_cut * max_eff ) & ( dt['pressure'] > center + 1 ) ]
+    return upper
+
+def press_range( dt, min_p, max_p ):
+    return dt[ (dt['pressure'] > min_p ) & ( dt['pressure'] < max_p ) ]
+
+def fit_curve( dt, col, fun, par ):
+    try:
+        p1, success = op.curve_fit( fun, dt['pressure'].values, dt[col].values, par)
+    except RuntimeError:
+        p1 = None
+    return p1
+
+def get_fit_funs( lower_fun , upper_fun, lower_par, upper_par ):
+    def low_fun(x):
+        return lower_fun( x,*lower_par )
+    def up_fun(x) :
+        return upper_fun( x, *upper_par)
+    return low_fun, up_fun
+
+dt_1000 = read_coinc( 'data/pion_peak/pion_pscan_1000.dat', 1000 )
+dt_1500 = read_coinc( 'data/pion_peak/pion_pscan_1500.dat', 1500 )
+dt_2000 = read_coinc( 'data/pion_peak/pion_pscan_2000.dat', 2000 )
+
+#fit dt_1000
+lower_1000 = lower_side( press_range( dt_1000, 1620, 1660 ), '6fold' )
+upper_1000 = upper_side( press_range( dt_1000, 1620, 1660 ), '6fold' )
+raw_lower_par_1000 = [ 1.0, 1630.0, 10.0 ]
+raw_upper_par_1000 = [ 1.0, 1660.0, 10.0 ]
+lower_par_1000 = fit_curve( lower_1000, '6fold', erf_func, raw_lower_par_1000 )
+upper_par_1000 = fit_curve( upper_1000, '6fold', rev_erf_func, raw_upper_par_1000 )
+low_1000, up_1000 = get_fit_funs( erf_func, rev_erf_func, lower_par_1000, upper_par_1000)
+delta_1000 = upper_par_1000[1] - lower_par_1000[1]
+
+raw_full_par_1000 = [ 1, 1642, 15, 5, 0 ]
+full_par_1000 = fit_curve( press_range( dt_1000, 1620, 1660 ), '6fold', double_erf, raw_full_par_1000 )
+print ( full_par_1000 )
+def full_1000_fun( x ):
+    return double_erf( x , *full_par_1000 )
+
+def my_1000_fun( x ):
+    return double_erf( x, 0.9, 1640, 15, 5, 0 )
+
+#fit dt_1500
+lower_1500 = lower_side( press_range( dt_1500, 1615, 1670 ), '6fold' )
+upper_1500 = upper_side( press_range( dt_1500, 1615, 1670 ), '6fold' )
+raw_lower_par_1500 = [ 1.0, 1615.0, 10.0 ]
+raw_upper_par_1500 = [ 1.0, 1670.0, 10.0 ]
+lower_par_1500 = fit_curve( lower_1500, '6fold', erf_func, raw_lower_par_1500 )
+upper_par_1500 = fit_curve( upper_1500, '6fold', rev_erf_func, raw_upper_par_1500 )
+low_1500, up_1500 = get_fit_funs( erf_func, rev_erf_func, lower_par_1500, upper_par_1500)
+delta_1500 = upper_par_1500[1] - lower_par_1500[1]
+
+#fit dt_2000
+lower_2000 = lower_side( press_range( dt_2000, 1610, 1680 ), '6fold' )
+upper_2000 = upper_side( press_range( dt_2000, 1610, 1680 ), '6fold' )
+raw_lower_par_2000 = [ 1.0, 1610.0, 10.0 ]
+raw_upper_par_2000 = [ 1.0, 1680.0, 10.0 ]
+lower_par_2000 = fit_curve( lower_2000, '6fold', erf_func, raw_lower_par_2000 )
+upper_par_2000 = fit_curve( upper_2000, '6fold', rev_erf_func, raw_upper_par_2000 )
+low_2000, up_2000 = get_fit_funs( erf_func, rev_erf_func, lower_par_2000, upper_par_2000)
+delta_2000 = upper_par_2000[1] - lower_par_2000[1]
+
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+ax.set_xlim( [1600, 1700])
+#ax.set_ylim( [0, 1.1])
+ax.set_xlabel( 'Pressure (mbar)' )
+ax.set_ylabel( 'Efficiency' )
+if do_log:
+    ax.set_yscale( 'log' )
+ax.grid( 'on' )
+
+ax.plot( dt_1000['pressure'], dt_1000['6fold'], 'o', mec = 'None', c = 'blue', label = '1mm' )
+ax.plot( dt_1500['pressure'], dt_1500['6fold'], 'o', mec = 'None', c = 'purple', label = '1.5mm' )
+ax.plot( dt_2000['pressure'], dt_2000['6fold'], 'o', mec = 'None', c = 'red' , label = '2.0mm' )
+
+pts = np.linspace( 1600, 1680, 100 )
+ax.plot( pts, low_1000( pts ), '-', lw = 2, label = '1mm fit', c = 'pink' )
+ax.plot( pts, up_1000( pts ), '-', lw = 2,  c = 'pink' )
+ax.plot( pts, full_1000_fun( pts ), '-', lw = 2, label = '1mm Full fit', c = 'black' )
+
+ax.plot( pts, low_1500( pts ), '-', lw = 2, label = '1.5mm fit', c = 'green' )
+ax.plot( pts, up_1500( pts ), '-', lw = 2,  c = 'green' )
+
+ax.plot( pts, low_2000( pts ), '-', lw = 2, label = '2.0mm fit', c = 'orange' )
+ax.plot( pts, up_2000( pts ), '-', lw = 2,  c = 'orange' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+
+if do_log:
+    plt.savefig( 'output/pion_peak/varydiaphragm_log.pdf', format = 'pdf', transparent = True )
+else:
+    plt.savefig( 'output/pion_peak/varydiaphragm.pdf', format = 'pdf', transparent = True )
+
+plt.cla()
+
+ax.plot( [1.0, 1.5, 2.0], [delta_1000, delta_1500, delta_2000 ], 'o-' )
+ax.grid( 'on' )
+ax.set_xlim( [0.8, 2.2])
+ax.set_ylim( [25, 75])
+ax.set_xlabel( 'Diaphragm (mm)' )
+ax.set_ylabel( 'Pressure width (mbar)' )
+plt.savefig( 'output/pion_peak/diaphragm_line.pdf', format = 'pdf', transparent = True )
+
+
+#real data
+dt_dt = pd.read_csv( 'data/pion_peak/data_pressure_scan.dat', delim_whitespace = True,
+    names = ['pressure', '6fold', '7fold', '8fold' ] )
+dt_dt['diaphragm'] = 'dt'
+dt_dt.sort( 'pressure', inplace= True )
+
+dt_dt_pions = press_range( dt_dt, 1600, 1700 )
+
+plt.cla()
+ax.set_xlim( [1600, 1700])
+if do_log:
+    ax.set_yscale( 'log' )
+ax.set_xlabel( 'Pressure (mbar)' )
+ax.set_ylabel( 'Efficiency' )
+ax.grid( 'on' )
+
+ax.plot( dt_dt_pions['pressure'], dt_dt_pions['6fold'], 'o', mec = 'None', c = 'black', label = 'data' )
+
+#fit dt_1000
+lower_dt = lower_side( press_range( dt_dt, 1620, 1700 ), '6fold', 1660, 1.1 )
+upper_dt = upper_side( press_range( dt_dt, 1620, 1700 ), '6fold', 1660, 1.1 )
+print( lower_dt )
+print( upper_dt )
+raw_lower_par_dt = [ 1.0, 1640.0, 10.0 ]
+raw_upper_par_dt = [ 1.0, 1680.0, 10.0 ]
+lower_par_dt = fit_curve( lower_dt, '6fold', erf_func, raw_lower_par_dt )
+upper_par_dt = fit_curve( upper_dt, '6fold', rev_erf_func, raw_upper_par_dt )
+low_dt, up_dt = get_fit_funs( erf_func, rev_erf_func, lower_par_dt, upper_par_dt)
+#delta_dt = upper_par_dt[1] - lower_par_dt[1]
+#
+pts_dt = np.linspace( 1600, 1700, 100 )
+#ax.plot( pts, low_dt( pts_dt ), '-', lw = 2, label = 'Data fit', c = 'orange' )
+#ax.plot( pts, up_dt( pts_dt ), '-', lw = 2,  c = 'orange' )
+
+def my_fit(x):
+    return erf_func( x, 0.65, 1655, 5 )
+
+ax.plot( pts, my_fit( pts_dt ), '-', lw = 2, label = 'My fit', c = 'pink' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+
+if do_log:
+    plt.savefig( 'output/pion_peak/data_diaphragm_log.pdf', format = 'pdf', transparent = True )
+else:
+    plt.savefig( 'output/pion_peak/data_diaphragm.pdf', format = 'pdf', transparent = True )

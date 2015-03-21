@@ -8,37 +8,73 @@ import cProfile
 import sys
 import numpy as np
 import os.path as osp
+import itertools
 
-pencil_ysplines = pycedar.load_templates_csv(
-        open( 'data/pencil_yscan/all.csv' ) ).loc[ 1000 , : , :  ]
+def plot_splines( input_file, output_file, title ):
+    pencil_ysplines = pycedar.load_templates_csv(
+            open( input_file  ) ).loc[ 1000 , : , :  ]
 
-asym_aligner = pycedar.AsymAligner(
-        wideset = None,
-        spline_range = 1000,
-        spline_smoothing = 3,
-        spline_step = 100 )
+    asym_aligner = pycedar.AsymAligner(
+            wideset = None,
+            spline_range = 1000,
+            spline_smoothing = 3,
+            spline_step = 100 )
 
-asym_aligner.do_corrections  = False
+    asym_aligner.do_corrections  = False
 
-asym_aligner.set_templates( pencil_ysplines )
-asyms = asym_aligner.prepare_data_sets( asym_aligner.templates )
+    asym_aligner.set_templates( pencil_ysplines )
+    asyms = asym_aligner.prepare_data_sets( asym_aligner.templates )
 
-asyms.reset_index(level=1, inplace=True)
+    asyms.reset_index(level=1, inplace=True)
+
+    print( asyms )
+
+    fig = plt.figure( figsize = [6, 6] )
+    fig.set_tight_layout(True)
+    ax = fig.add_subplot( 111 )
+    ax.grid( True )
+
+    ax.yaxis.set_major_formatter(pycedar.plotting.format_mm)
+    ax.set_ylabel( 'Y - Misalignment' )
+    ax.set_xlabel( 'Measured UD Assymetry' )
+
+    ax.set_title( title.format( 0.001 * 1000  ) )
+    ax.errorbar( asyms['ud'], asyms['y'], xerr = asyms['ud_err'] )
+    plt.savefig( output_file , format = 'pdf' , transparent = 'true' )
+    ax.cla()
 
 
-print( asyms )
+input_folder = 'data/rejig_multi_yscan'
+output_folder = 'output/spline_shapes/permutations'
 
-fig = plt.figure( figsize = [6, 6] )
-fig.set_tight_layout(True)
-ax = fig.add_subplot( 111 )
-ax.grid( True )
+beam_types = ['beam', 'gaus', 'pencil']
+selections = ['all', 'pmt10', 'pmt5', 'sec5' ]
 
-ax.yaxis.set_major_formatter(pycedar.plotting.format_mm)
-ax.set_ylabel( 'Y - Misalignment' )
-ax.set_xlabel( 'Measured UD Assymetry' )
+combos = itertools.product( beam_types, selections )
 
-ax.set_title( 'Pencil beam - {0} mm diaphragm'.format( 0.001 * 1000  ) )
-ax.errorbar( asyms['ud'], asyms['y'], xerr = asyms['ud_err'] )
-plt.savefig( 'output/spline_shapes/pencil_yscan.pdf', format = 'pdf' , transparent = 'true' )
-ax.cla()
+for combo in combos:
+    input_file = '{0}/multi_{1}_yscan/{2}.dat'.format( input_folder, *combo )
+    output_file = '{0}/{1}/{2}.pdf'.format( output_folder, *combo )
+    print( input_file )
+
+print( list(combos ))
+
+
+
+
+#input_file = 'data/yscan/pencil_yscan/all.csv'
+#output_file = 'output/spline_shapes/pencil_yscan.pdf'
+#title = 'Pencil beam - {0} mm diaphragm'
+
+#input_file = 'data/yscan/gaus_yscan/all.csv'
+#output_file = 'output/spline_shapes/guas_yscan.pdf'
+#title = 'Gaus beam - {0} mm diaphragm'
+
+#input_file = 'data/yscan/beam_yscan/all.csv'
+#output_file = 'output/spline_shapes/beam_yscan.pdf'
+#title = 'Beam beam - {0} mm diaphragm'
+
+input_file = 'data/yscan/hs_beam_yscan/all.csv'
+output_file = 'output/spline_shapes/hs_beam_yscan.pdf'
+title = 'Beam beam - {0} mm diaphragm'
 

@@ -3,8 +3,10 @@ import pandas as pd
 import os
 import os.path as osp
 
-folder = 'data/pencil_yscan/indi'
-print( 'Reading from data/pencil_yscan')
+#folder = 'data/yscan/pencil_yscan/indi'
+#folder = 'data/yscan/beam_yscan/indi'
+folder = 'data/yscan/hs_beam_yscan/indi'
+print( 'Reading from {0}'.format( folder ))
 files = ( osp.join( folder, name ) for name in  os.listdir( folder ) )
 
 data_sets = []
@@ -29,5 +31,8 @@ res = res[cols].sort( 'y' )
 
 print (res)
 
-print( 'Writing to data/pencil_yscan/all.csv')
-res.to_csv( 'data/pencil_yscan/all.csv', sep = ' ', index = False)
+#output_file = 'data/yscan/pencil_yscan/all.csv' 
+#output_file = 'data/yscan/beam_yscan/all.csv' 
+output_file = 'data/yscan/hs_beam_yscan/all.csv' 
+print( 'Writing to {0}'.format( output_file ) )
+res.to_csv( output_file , sep = ' ', index = False)
