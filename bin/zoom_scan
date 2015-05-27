@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+import pycedar
+import matplotlib.pyplot as plt
+
+zoom_dt = pycedar.load_templates_csv( 
+        open( 'data/rejig_zoom/zoomscan/sec5.dat' ) ).sortlevel()
+
+asym_aligner = pycedar.AsymAligner( 
+        wideset = None )
+
+asym_aligner.do_corrections = False
+
+asyms = asym_aligner.prepare_data_sets( zoom_dt )
+
+
+fig = plt.figure( figsize = [6, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+ax.grid( True )
+ax.set_xlabel( 'Diaphragm' )
+ax.set_ylabel( 'UD Asymmetry' )
+
+aligned = asyms.loc[ (slice(None), 0, 0) , : ]
+aligned.reset_index( inplace = True )
+print( aligned )
+ax.errorbar( aligned['r'], aligned['ud'], yerr = aligned['ud_err'], label  = 'aligned' )
+
+y300 = asyms.loc[ (slice(None), 0, 300) , : ]
+y300.reset_index( inplace = True )
+print( y300 )
+ax.errorbar( y300['r'], y300['ud'], yerr = y300['ud_err'], label = 'y = 0.3mm' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+plt.savefig( 'output/zoomscan/zoomy.pdf', format = 'pdf', transparent = 'true' )
+
+ax.cla()
+ax.grid( True )
+ax.set_xlabel( 'Diaphragm' )
+ax.set_ylabel( 'LR Asymmetry' )
+
+x300 = asyms.loc[ (slice(None), 300, 000) , : ]
+x300.reset_index( inplace = True )
+print( x300 )
+ax.errorbar( x300['r'], x300['lr'], yerr = x300['lr_err'], label = 'x = 0.3mm' )
+
+ax.errorbar( aligned['r'], aligned['lr'], yerr = aligned['lr_err'], label = 'aligned' )
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'lower right')
+plt.savefig( 'output/zoomscan/zoomx.pdf', format = 'pdf', transparent = 'true' )

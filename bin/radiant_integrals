@@ -162,7 +162,7 @@ mangin_fun, spherical_fun, cap_fun = ( np.vectorize(x) for x in
             pycedar.spherical_mirror_reflectivity, 
             pycedar.external_lens_transmittance ] )
 
-ax.plot( ls, mangin_fun( ls ), color = 'DarkBlue', linewidth = 2, linestyle = '-', label = 'Mangin mirror' )
+ax.plot( ls, mangin_fun( ls ), color = 'DarkBlue', linewidth = 2, linestyle = '-', label = 'Internal optics' )
 ax.plot( ls, spherical_fun( ls ), color = 'DarkRed', linewidth = 2, linestyle = '-.', label = 'Spherical mirrors' )
 ax.plot( ls, cap_fun( ls ), color = 'DarkGreen', linewidth = 2, linestyle = '--', label = 'Optical cap lens' )
 

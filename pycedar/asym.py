@@ -20,6 +20,9 @@ def asym( a, b):
     along with Poisson error
 
     """
+    if ( a + b ) == 0:
+        return 0.0, 0.0
+
     return ( float( a - b ) / float( a + b ),
             2 * math.sqrt( float(a * b) / float( a + b ) **3 ) )
 

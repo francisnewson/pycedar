@@ -1,0 +1,155 @@
+#!/usr/bin/env python
+# This Python file uses the following encoding: utf-8
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors
+import pycedar
+
+def pe78(dt):
+    n7 = float(dt['7-fold'])
+    n8 = float(dt['8-fold'])
+    return np.log( 1 + 8.0 / ( n7 / n8 - 1 ) )
+
+def pe78_err( n7, n7err, n8, n8err ):
+    f = n7/n8 - 1
+    return np.sqrt( 8. / ( f * ( f + 8 ) ) ) * np.sqrt( n7err**2 + n8err**2 / n8**2 ) 
+
+def pe78_err_dt( dt ):
+    effs = dt['effs']
+    errs = dt['eff_errs']
+    return pe78_err( effs['7-fold'], errs['7-fold'], effs['8-fold'], errs['8-fold'] )
+
+def pe68(dt):
+    n6 = float(dt['7-fold'])
+    n8 = float(dt['8-fold'])
+    return np.log( 1 + 14.0 / ( np.sqrt( 4 - 7 * ( 1 - n6 / n8) ) -2 ) )
+
+def process_total_effs( dt ):
+    total_effs = dt
+    total_effs['eff_errs'] = ( 1. / np.sqrt( total_effs['count'] ) 
+            * np.sqrt( total_effs['effs'] * ( 1 - total_effs['effs'] )))
+
+    print( total_effs)
+    print( 'pe78: {0:5.3f} ± {1:5.3f}'.format( pe78( total_effs['effs'] ), pe78_err_dt(total_effs)  ) )
+    print( 'pe68: {0:5.3f}'.format( pe68( total_effs['effs'] ) ) )
+
+def process_data( dt):
+    nfolds = dt[ [str(n)+'-fold' for n in range( 0, 9 )] ][::-1].cumsum()[::-1]
+    effs = pd.Series( [float(x) / dt['total'] for x in nfolds], index = nfolds.index )
+    eff_errs =  1. / np.sqrt( dt['total'] )  * np.sqrt( effs ) * ( 1 - effs )
+    eff_data = pd.DataFrame( {'effs' : effs, 'eff_errs' : eff_errs } )
+    return pd.Series( { 'pe78' :  pe78( effs ), 'pe78_err' : pe78_err_dt( eff_data ), 'pe68': pe68( effs )  } )
+
+def get_data_total_effs( inputfile ):
+    dt = pd.read_csv( inputfile, delim_whitespace = True, index_col = 'Burst' )
+
+    dt_karim_count =pd.read_csv( 'data/dt2014/coinc/karim_counts.dat', 
+            delim_whitespace = True, index_col = 0, names = ['Burst', 'count' ] )
+
+    dt_cumsum = dt[dt.columns[::-1]].cumsum( axis = 1 )[dt.columns]
+    full = pd.concat( [dt_cumsum, dt_karim_count], axis = 1, join = 'inner' )
+
+    totals = full.sum()
+    effs = full.div(  full['count'], axis = 'index' )
+
+    total_effs = pd.DataFrame( {
+    'effs' : totals.div( totals['count'], axis = 'index' ) ,
+    'count' : totals['count' ]
+    } )
+
+    return total_effs
+
+pd.set_option('display.max_columns', 30)
+pd.set_option('display.width', 120)
+
+dt_total_effs = get_data_total_effs( 'data/dt2014/coinc/karim_coincs.dat' )
+process_total_effs( dt_total_effs )
+
+mc_sets = pd.read_csv( 'data/mc_coinc/d1000_coinc.dat', delim_whitespace = True,
+        index_col = ['r', 'x', 'y' ] )
+
+print( mc_sets)
+count = mc_sets['count'].values[0]
+mc_sets = mc_sets[mc_sets.columns[:-1]]
+mc_cumsum = mc_sets[mc_sets.columns[::-1]].cumsum( axis = 1 )[mc_sets.columns]
+mcs = mc_cumsum.div(count )
+
+print (mcs)
+
+sys.exit()
+
+for idx, mcdt in mcs.iterrows():
+    print( idx )
+    mc_total_effs = pd.DataFrame( { 'effs' : mcdt } )
+    mc_total_effs['count'] = count
+    process_total_effs( mc_total_effs )
+
+mc_scan = pd.read_csv( 'data/mc_coinc/coinc_scan_2d.dat', delim_whitespace = True,
+        index_col = ['r', 'x', 'y' ] ).dropna()
+
+print( mc_scan )
+
+scan_results = mc_scan.apply( process_data, axis = 1 )
+scan_results['pe_meas'] = mc_scan['mean'] / 8.
+scan_results['norm68'] = scan_results['pe68'] / scan_results['pe_meas']
+scan_results['norm78'] = scan_results['pe78'] / scan_results['pe_meas']
+scan_results['norm678'] = scan_results['pe68'] / scan_results['pe78']
+scan_results['norm678_err'] = scan_results['pe78_err'] / scan_results['pe78'] * scan_results['norm678'] * 2
+
+print( scan_results )
+sr=scan_results.reset_index()
+
+
+#ax.plot( sr.x, sr.norm68, '-o', label = '$\phi_{68} / \phi_{measured}$' )
+#ax.plot( sr.x, sr.norm78, '-o', label = '$\phi_{78} / \phi_{measured}$' )
+
+#set up plot
+fig = plt.figure( figsize = [6, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+#do x scan
+ax.grid( 'on' )
+ax.set_xlabel( 'Misalignment x (mm)' )
+ax.xaxis.set_major_formatter(pycedar.plotting.format_mm)
+
+srx = sr[sr['y']==0].sort( 'x' )
+ax.errorbar( srx.x, srx.norm678, yerr = srx.norm678_err, fmt =  '-o', label = '$\phi_{68} / \phi_{78}$' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+plt.savefig( 'output/coinc/mc_d1mm_x.pdf', format = 'pdf', transparent = 'true' )
+
+ax.cla()
+
+#do y scan
+ax.grid( 'on' )
+ax.set_xlabel( 'Misalignment y (mm)' )
+ax.xaxis.set_major_formatter(pycedar.plotting.format_mm)
+
+sry = sr[sr['x']==0].sort( 'y')
+ax.errorbar( sry.y, srx.norm678, yerr = sry.norm678_err, fmt =  '-o', label = '$\phi_{68} / \phi_{78}$' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+plt.savefig( 'output/coinc/mc_d1mm_y.pdf', format = 'pdf', transparent = 'true' )
+
+ax.cla()
+
+#do xy scan
+fig.set_size_inches( 8, 6, )
+ax.grid( 'on' )
+ax.set_aspect( 'equal' )
+ax.set_xlabel( 'Misalignment x (mm)' )
+ax.set_ylabel( 'Misalignment y (mm)' )
+ax.set_xlim( -1200, 1200) 
+ax.set_ylim( -1200, 1200) 
+plotted = ax.scatter( sr.x, sr.y, c =sr.norm678,
+        marker = 's', s = 100, edgecolor = 'None',
+        #norm=matplotlib.colors.LogNorm(),
+        vmin = 1.02, vmax = 1.3,
+        )
+
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( 'output/coinc/mc_d1mm_xy.pdf', format = 'pdf', transparent = 'true' )

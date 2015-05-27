@@ -49,8 +49,17 @@ def get_sectors_rejects( points, r_min, r_max ):
     r2_min = r_min**2
     r2_max = r_max**2
 
+    aperture_phi = 42.6 / 360 * 2 * np.pi
+    gap = ( np.pi / 4.0 - aperture_phi ) / 2.0
+
+    inner_check =  (points['r2'] > r2_min)
+    outer_check = (points['r2'] < r2_max ) 
+    low_gap = (points['theta'] % (np.pi/4.0 ) >  gap )
+    high_gap = (points['theta'] % (np.pi/4.0 ) <  np.pi/4 - gap )
+
     #filter
-    accept = (points['r2'] > r2_min) & (points['r2'] < r2_max )
+    accept = inner_check & outer_check & low_gap & high_gap
+    #accept = & & ( points['theta'] % (np.pi/4.0) >  (np.pi / 4 - aperture_phi ) / 2.0 )
 
     accept_points = points[ accept ]
     reject_points = points[ np.invert(accept) ]
@@ -58,12 +67,16 @@ def get_sectors_rejects( points, r_min, r_max ):
     centres = [ np.pi / 8 + i%8 * np.pi / 4 for i in range( 1, -8, -1 ) ]
 
     accept_sectors = [ accept_points[ 
-        (accept_points['theta'] > p0 - np.pi / 8 )  
-        & (accept_points['theta'] < p0 + np.pi / 8 ) ] for p0 in centres ]
+        (accept_points['theta'] > p0 - aperture_phi / 2 )  
+        & (accept_points['theta'] < p0 + aperture_phi / 2) ] for p0 in centres ]
 
-    return accept_sectors, reject_points
+    reject_sectors = [ reject_points[ 
+        (reject_points['theta'] > p0 - np.pi / 8 )  
+        & (reject_points['theta'] < p0 + np.pi / 8) ] for p0 in centres ]
 
-def plot_points( ax, accept_sectors, reject_points, r_min, r_max, **kwargs ):
+    return accept_sectors, reject_sectors
+
+def plot_points( ax, accept_sectors, reject_sectors, r_min, r_max, **kwargs ):
     ax.set_xlim( [-150, 150 ] )
     ax.set_ylim( [-150, 150 ] )
 
@@ -72,16 +85,14 @@ def plot_points( ax, accept_sectors, reject_points, r_min, r_max, **kwargs ):
     for asec, color in zip( accept_sectors, colors ):
         ax.scatter( asec['x'], asec['y'], c = color, edgecolor = 'None', **kwargs )
 
-    reject_left = reject_points[ reject_points['x'] < 0 ] 
-    reject_right = reject_points[ reject_points['x'] > 0 ] 
-
-    #rejected points
-    ax.scatter( reject_left['x'], reject_left['y'], edgecolor = 'None', color = 'magenta' , **kwargs )
-    ax.scatter( reject_right['x'], reject_right['y'], edgecolor = 'None', color = 'orange', **kwargs  )
+    #rejected sectors
+    colors = [ 'magenta', 'orange', 'magenta', 'orange' , 'magenta', 'orange', 'magenta', 'orange' ]
+    for asec, color in zip( reject_sectors, colors ):
+        ax.scatter( asec['x'], asec['y'], c = color, edgecolor = 'None', **kwargs )
 
     #diaphragm
-    inner_circle = mpatches.Circle( (0,0), r_min, ec = 'k', fc = 'None', ls = 'dashed', lw = 4  )
-    outer_circle = mpatches.Circle( (0,0), r_max, ec = 'k', fc = 'None', ls = 'dashed', lw = 4  )
+    inner_circle = mpatches.Circle( (0,0), r_min, ec = 'k', fc = 'None', ls = 'dashed', lw = 1  )
+    outer_circle = mpatches.Circle( (0,0), r_max, ec = 'k', fc = 'None', ls = 'dashed', lw = 1  )
     ax.add_patch(inner_circle)
     ax.add_patch(outer_circle)
     return ax
@@ -92,12 +103,16 @@ def get_asym( accept_sectors ):
     return pycedar.oct_asym( sectors )
 
 #MAIN
-rmin = 90
-rmax = 110
+rmin = 99
+rmax = 101
+
+light_rmin = 99.5
+light_rmax = 100.5
 
 shift_x = 0
 asyms = []
-yshifts = range( -20, 21 )
+#yshifts = range( -20, 20, 1 )
+yshifts = [ 0.1 * y for y in range( -25, 25, 1 ) ]
 
 asym = True
 
@@ -105,33 +120,36 @@ if asym:
     with progressbar.ProgressBar( maxval = len( yshifts) ) as pb:
         for nb,shift_y in enumerate(yshifts):
             pb.update( nb )
-            points = generate_points( r_min = rmin, r_max = rmax, shift_x = shift_x, shift_y = shift_y, n = 100000 )
-            accept_sectors, reject = get_sectors_rejects( points, r_min = rmin, r_max = rmax )
+            points = generate_points( r_min = light_rmin, r_max = light_rmax, shift_x = shift_x, shift_y = shift_y, n = 1000000 )
+            accept_sectors, reject_sectors = get_sectors_rejects( points, r_min = rmin, r_max = rmax )
+            #print( '{0}: {1}'.format( shift_y, [a.shape[0] for a in accept_sectors] ) )
+            #print( '{0}: {1}'.format( shift_y, [a.shape[0] for a in reject_sectors] ) )
             asym = get_asym( accept_sectors )
             asym['y'] = shift_y
             asyms.append( asym )
 
-dt_asym = pd.DataFrame( asyms )
-print( dt_asym )
+    dt_asym = pd.DataFrame( asyms )
+    print( dt_asym )
 
-fig = plt.figure( figsize = [8, 6] )
-fig.set_tight_layout(True)
-ax = fig.add_subplot( 111 )
-ax.grid( 'on' )
+    fig = plt.figure( figsize = [8, 6] )
+    fig.set_tight_layout(True)
+    ax = fig.add_subplot( 111 )
+    ax.grid( 'on' )
 
-ax.set_title( 'R = 100, diagphragm = 20, ring width = 20' )
+    ax.set_title( 'R = {0}, diagphragm = {1}, ring width = {2}'.format( (rmin + rmax) / 2, rmax - rmin, light_rmax - light_rmin ) )
 
-ax.set_ylabel( 'UD asymmetry' )
-ax.set_xlabel( 'Misalignment in y' )
+    ax.set_ylabel( 'UD asymmetry' )
+    ax.set_xlabel( 'Misalignment in y' )
 
-ax.set_ylim([ -0.3, 0.3 ] )
-ax.set_xlim([ -20, 20 ] )
+    ax.set_ylim([ -0.3, 0.3 ] )
+    ax.set_xlim([ -3, 3 ] )
 
-ax.errorbar( x = dt_asym['y'], y = dt_asym['ud'], yerr = dt_asym['ud_err'] )
+    ax.errorbar( x = dt_asym['y'], y = dt_asym['ud'], yerr = dt_asym['ud_err'] )
 
-plt.savefig( 'output/circles/wide_asym.pdf' , format = 'pdf', transparent = 'true')
+    desc = 'diaphragm_{0}_ring_{1}'.format( rmax - rmin , light_rmax - light_rmin) 
 
-plot = False
+    plt.savefig( 'output/circles/asym{0}.pdf'.format( desc) , format = 'pdf', transparent = 'true')
+
 plot_example = True
 
 if plot_example:
@@ -139,12 +157,33 @@ if plot_example:
     fig.set_tight_layout(True)
     ax = fig.add_subplot( 111 )
     ax.grid( 'on' )
-    ax.set_title( 'R = 100, diagphragm = 20, ring width = 20, dy = 10' )
 
-    points = generate_points( r_min = rmin, r_max = rmax, shift_x = 0, shift_y = 10 , n = 100000 )
+    yshift = 0 
+
+    ax.set_title( 'R = {0}, diagphragm = {1}, ring width = {2}, dy = {3}'.format( (rmin + rmax) / 2, 
+        rmax - rmin , light_rmax - light_rmin, yshift ) )
+
+    points = generate_points( r_min = light_rmin, r_max = light_rmax, shift_x = 0, shift_y = yshift , n = 100000 )
     accept_sectors, reject = get_sectors_rejects( points, r_min = rmin, r_max = rmax )
 
-    plot_points( ax, accept_sectors, reject, rmin, rmax, rasterized = True )
-    plt.savefig( 'output/circles/test_ring.pdf' , format = 'pdf', transparent = 'true')
+    desc = 'diaphragm_{0}_ring_{1}_pos_{2}'.format( rmax - rmin , light_rmax - light_rmin, yshift ) 
+
+
+    plot_points( ax, accept_sectors, reject, rmin, rmax, s = 0.8,  rasterized = True )
+    plt.savefig( 'output/circles/scatter_{0}.pdf'.format( desc ) , format = 'pdf', transparent = 'true')
+
+
+
+    ax.cla()
+
+    n, bins, patches = ax.hist( points['r'], 10, )
+
+    ax.set_ylabel( 'Flux' )
+    ax.set_xlabel( 'r' )
+
+    ax.set_ylim([ 8000, 12000 ] )
+
+    plt.savefig( 'output/circles/hist_{0}.pdf'.format( desc ) , format = 'pdf', transparent = 'true')
+
 
 sys.exit(0)

@@ -1,0 +1,186 @@
+#!/usr/bin/env python
+import pycedar
+import gzip
+import pandas as pd
+import logging
+import matplotlib.pyplot as plt
+import cProfile
+import sys
+import numpy as np
+import os.path as osp
+import os
+import errno
+import argparse
+import yaml
+import matplotlib.colors
+
+def set_up_ax( ax, myrange ):
+    ax.grid( True )
+    ax.set_xlim( -myrange, myrange )
+    ax.set_ylim( -myrange, myrange )
+
+    ax.yaxis.set_major_formatter(pycedar.format_mm)
+    ax.xaxis.set_major_formatter(pycedar.format_mm)
+
+    ax.set_xlabel( 'x (mm)')
+    ax.set_ylabel( 'y (mm)')
+
+def do( mc_input_file, dt_input_file, dt_input_row,
+    chi2_groups, chi2_plot_file, ignore_pmts, plot_range):
+
+
+    #load mc templates
+    mc = pycedar.load_templates_csv( open( mc_input_file),
+            ignore_pmts = ignore_pmts 
+            ).sortlevel().loc[ 1000, -800:800, -800:800 ].loc[1000, :, :]
+
+    #load data
+    dt = pycedar.load_templates_csv( open( dt_input_file),
+        ignore_pmts = ignore_pmts, 
+        index_col = 'index' )
+
+    #print( mc )
+    #print( dt )
+
+    #--------------------------------------------------
+    # CHI2 ALIGNER
+    #--------------------------------------------------
+
+    logging.info('CHI2 ALIGNER' )
+
+    chi2_aligner = pycedar.Chi2Aligner(
+            groups = chi2_groups, 
+            errfun = pycedar.default_errfun )
+
+    logging.info('Preparing templates' )
+    chi2_aligner.set_templates( mc )
+    chi2_aligner.prepare_templates()
+    chi2_aligner_data = chi2_aligner.prepare_data_sets(dt) 
+
+    #raw alignment
+    logging.info('Computing alignment' )
+    chi2_aligner.compute_alignment( chi2_aligner_data.loc[dt_input_row] )
+    print( '{0:20}: {1}'.format( "CHI2", chi2_aligner.best_xy() ))
+    print( chi2_aligner_data.loc[dt_input_row].transpose() )
+    print( chi2_aligner.template_group_totals.loc[chi2_aligner.best_xy()].transpose())
+    print( '\n\n\n\n' )
+
+    #plot chi2 plot
+    logging.info('Plotting chi2 results' )
+    dtchi2 = chi2_aligner.last_result
+
+    fig = plt.figure( figsize = [8, 6] )
+    fig.set_tight_layout(True)
+    ax = fig.add_subplot( 111 )
+    set_up_ax( ax, 1000 )
+
+    minlnchi2 = np.log( dtchi2['chi2'].min() )
+    plotted = ax.scatter( dtchi2['x'], dtchi2['y'], 
+            c =  np.log(dtchi2['chi2'] ), 
+            vmin = minlnchi2 , vmax = minlnchi2+plot_range,
+            #c =  dtchi2['chi2'], norm=matplotlib.colors.LogNorm(),
+            marker = 's', s = 75 , edgecolor = 'None',
+            cmap = 'YlGnBu_r', 
+            )
+
+    cbar = plt.colorbar( mappable = plotted )
+
+    plt.savefig( chi2_plot_file , format = 'pdf', transparent  = 'true' )
+    cbar.remove()
+    plt.cla()
+
+instruct = dict( 
+    mc_input_file = 'data/rejig_multi_mc/mc_1710_1000_42/all.dat',
+    dt_input_file = 'data/dt2014/multi/run_1520_raw.dat',
+    dt_input_row = 'all',
+    chi2_groups = pycedar.get_chi2_sixths(),
+    chi2_plot_file = 'output/run1520/chi2/raw_all_sixths.pdf',
+    ignore_pmts = [] ,
+    plot_range = 0.2
+    )
+
+do(**instruct)
+
+instruct = dict( 
+    mc_input_file = 'data/rejig_multi_mc/mc_1710_1000_42/all.dat',
+    dt_input_file = 'data/dt2014/multi/run_1520_raw.dat',
+    dt_input_row = 'all',
+    chi2_groups = pycedar.get_chi2_octants(),
+    chi2_plot_file = 'output/run1520/chi2/raw_all_octants.pdf',
+    ignore_pmts = [] ,
+    plot_range = 0.4
+    )
+
+do(**instruct)
+
+instruct = dict( 
+    mc_input_file = 'data/rejig_multi_mc/mc_1710_1000_42/sec5.dat',
+    dt_input_file = 'data/dt2014/multi/run_1520_raw.dat',
+    dt_input_row = '5sectors',
+    chi2_groups = pycedar.get_chi2_sixths(),
+    chi2_plot_file = 'output/run1520/chi2/raw_5sec_sixths.pdf',
+    ignore_pmts = [] ,
+    plot_range =1 
+    )
+
+do(**instruct)
+
+instruct = dict( 
+    mc_input_file = 'data/rejig_multi_mc/mc_1710_1000_42/sec5.dat',
+    dt_input_file = 'data/dt2014/multi/run_1520_raw.dat',
+    dt_input_row = '5sectors',
+    chi2_groups = pycedar.get_chi2_octants(),
+    chi2_plot_file = 'output/run1520/chi2/raw_5sec_octants.pdf',
+    ignore_pmts = [] ,
+    plot_range = 0.4, 
+    )
+
+do(**instruct)
+
+instruct = dict( 
+    mc_input_file = 'data/rejig_multi_mc/mc_1710_1000_42/all.dat',
+    dt_input_file = 'data/dt2014/multi/run_1520_kk.dat',
+    dt_input_row = 'all',
+    chi2_groups = pycedar.get_chi2_sixths(),
+    chi2_plot_file = 'output/run1520/chi2/kk_all_sixths.pdf',
+    ignore_pmts = [] ,
+    plot_range = 0.2
+    )
+
+do(**instruct)
+
+instruct = dict( 
+    mc_input_file = 'data/rejig_multi_mc/mc_1710_1000_42/all.dat',
+    dt_input_file = 'data/dt2014/multi/run_1520_kk.dat',
+    dt_input_row = 'all',
+    chi2_groups = pycedar.get_chi2_octants(),
+    chi2_plot_file = 'output/run1520/chi2/kk_all_octants.pdf',
+    ignore_pmts = [] ,
+    plot_range = 0.4
+    )
+
+do(**instruct)
+
+instruct = dict( 
+    mc_input_file = 'data/rejig_multi_mc/mc_1710_1000_42/sec5.dat',
+    dt_input_file = 'data/dt2014/multi/run_1520_kk.dat',
+    dt_input_row = '5sectors',
+    chi2_groups = pycedar.get_chi2_sixths(),
+    chi2_plot_file = 'output/run1520/chi2/kk_5sec_sixths.pdf',
+    ignore_pmts = [] ,
+    plot_range =1 
+    )
+
+do(**instruct)
+
+instruct = dict( 
+    mc_input_file = 'data/rejig_multi_mc/mc_1710_1000_42/sec5.dat',
+    dt_input_file = 'data/dt2014/multi/run_1520_kk.dat',
+    dt_input_row = '5sectors',
+    chi2_groups = pycedar.get_chi2_octants(),
+    chi2_plot_file = 'output/run1520/chi2/kk_5sec_octants.pdf',
+    ignore_pmts = [] ,
+    plot_range = 0.4, 
+    )
+
+do(**instruct)

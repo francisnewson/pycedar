@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib import ticker
+
+def format_x( ax ):
+    x_formatter = ticker.ScalarFormatter(useOffset=False)
+    x_formatter = ticker.FormatStrFormatter('%0.0f')
+    ax.xaxis.set_major_formatter(x_formatter)
+    #ax.set_xlim( [1418515000, 1418555000] )
+    ax.set_xlim( [1417082117, 1417094097] )
+    ax.set_xlabel( 'EOB Time' )
+    ax.grid( 'on' )
+
+
+dt = pd.read_csv( 'data/eob/align_data.list', delim_whitespace = True )
+dt.sort( 'EOBTime', inplace = 'True' )
+#dt = dt[ dt['EOBTime'] != 1418525606 ]
+dt = dt[ dt['EOBTime'] != 1417092159 ] 
+
+rear_temp_dt = dt[['EOBTime', 'TempRear', 'TempFront', 'TempDiaph']]
+rear_temp_dt = rear_temp_dt[( rear_temp_dt.T != 0).any() ]
+
+dt = dt[( dt.T != 0).any() ]
+
+
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+#--------------------------------------------------
+
+format_x( ax )
+
+ax.set_ylabel( '$^\circ$C' )
+#ax.set_ylim( [18, 28] )
+
+ax.plot( dt['EOBTime'], dt['TempRear'], label  = 'Rear temperature')
+ax.plot( dt['EOBTime'], dt['TempFront'], label = 'Front temperature' )
+ax.plot( dt['EOBTime'], dt['TempDiaph'], label = 'Diaphragm temperature' )
+
+labels = ax.get_xticklabels() 
+for label in labels: 
+        label.set_rotation(90) 
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'lower right')
+plt.savefig( 'output/align_eob/temperature.pdf', format = 'pdf', transparent = 'true' )
+
+ax.cla()
+
+#--------------------------------------------------
+
+format_x( ax )
+
+ax.set_ylim( [1.734, 1.744] )
+ax.set_ylabel( 'Bar' )
+
+ax.plot( dt['EOBTime'], dt['Pressure'], label  = 'Pressure')
+ax.plot( dt['EOBTime'], dt['PressureSetPoint'], label = 'Pressure Set Point' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper right')
+
+labels = ax.get_xticklabels() 
+for label in labels: 
+        label.set_rotation(90) 
+
+plt.savefig( 'output/align_eob/pressure.pdf', format = 'pdf', transparent = 'true' )
+
+ax.cla()
+
+#--------------------------------------------------
+
+format_x( ax )
+
+#ax.set_ylim( [-0.5, 1.2] )
+ax.set_ylabel( 'mm' )
+
+ax.plot( dt['EOBTime'], dt['MotorPosX'],  '-o', mec = 'None', lw = 2, label  = 'Motor X')
+ax.plot( dt['EOBTime'], dt['MotorPosY'],  '-o', mec = 'None', lw = 2,  label = 'Motor Y' )
+ax.plot( dt['EOBTime'], dt['Diaphragm'],  '-o', mec = 'None', lw = 2, label = 'Diaphragm' )
+
+labels = ax.get_xticklabels() 
+for label in labels: 
+        label.set_rotation(90) 
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'upper left')
+
+#print ( dt[ dt['Diaphragm'] > 2 ] )
+print( dt[ ['EOBTime', 'MotorPosX' , 'Diaphragm'] ].sort( 'Diaphragm' ) )
+
+plt.savefig( 'output/align_eob/alignment.pdf', format = 'pdf', transparent = 'true' )

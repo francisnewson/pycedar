@@ -4,6 +4,7 @@ import os.path as osp
 import numpy as np
 import pycedar
 import matplotlib.pyplot as plt
+import sys
 
 def err_rat(a, b ):
     return ( 1 / np.sqrt(b) + 1/np.sqrt(b) ) * a / b
@@ -12,11 +13,153 @@ def get_rat( df, num, denom ):
     return pd.DataFrame( [df.loc[num] /df.loc[denom] ,  
         err_rat( df.loc[num],df.loc[denom] )], ['ratio', 'err' ] ).transpose()
 
+def get_rat( num, denom ):
+    return pd.DataFrame( [num / denom , err_rat( num , denom )], ['ratio' , 'err'] ).transpose()
+
+def setup( ax ):
+    ax.set_xlabel( 'x (cm)' )
+    ax.set_ylabel( 'y (cm)' )
+    ax.set_aspect( 'equal' )
+
+
 
 #mc_file = 'x_p00400_y_m00400_d_p01500'
 #folder = 'data/raw_multi_mc/mc_1710_1500_42/'
 mc_file = 'multi_run_1520_karim_kaons'
 folder = 'data/dt2014'
+
+csv_args = dict(  delim_whitespace = True, index_col = ['index'] )
+
+#load data
+dt_raw = pd.read_csv( 'data/dt2014/multi/run_1520_raw.dat', **csv_args )
+dt_kk = pd.read_csv( 'data/dt2014/multi/run_1520_kk.dat', **csv_args )
+
+#load mc
+dt_mc_all = pycedar.load_templates_csv( 'data/rejig_multi_mc/mc_1710_1000_42/all.dat' ).sortlevel()
+dt_mc_pmt5 = pycedar.load_templates_csv( 'data/rejig_multi_mc/mc_1710_1000_42/pmt5.dat' ).sortlevel()
+dt_mc_pmt10 = pycedar.load_templates_csv( 'data/rejig_multi_mc/mc_1710_1000_42/pmt10.dat' ).sortlevel()
+dt_mc_sec5 = pycedar.load_templates_csv( 'data/rejig_multi_mc/mc_1710_1000_42/sec5.dat' ).sortlevel()
+
+pycedar.mkdir_p( 'output/req_rat/mc')
+pycedar.mkdir_p( 'output/req_rat/dt')
+
+#set up plotting
+proj_map = pycedar.make_proj_map()
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+#MC aligned ratio
+setup(ax)
+ax.set_title( 'aligned: 5 sector / all'  )
+m = get_rat( dt_mc_sec5.loc[ 1000, 0, 0 ], dt_mc_all.loc[1000, 0, 0 ] )
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c = m['ratio'] , edgecolor = 'None' )
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( osp.join( 'output/req_rat/mc', 'mc_sec5_all_aligned' + '.pdf' ), format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+ax.cla()
+
+#MC aligned sec5
+setup(ax)
+ax.set_title( 'aligned: 5 sector'  )
+m = dt_mc_sec5.loc[1000, 0, 0]
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c = m , edgecolor = 'None' )
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( osp.join( 'output/req_rat/mc', 'mc_sec5_aligned' + '.pdf' ), format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+ax.cla()
+
+#MC aligned all
+setup(ax)
+m = dt_mc_all.loc[1000, 0, 0]
+ax.set_title( 'aligned: all'  )
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c = m , edgecolor = 'None' )
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( osp.join( 'output/req_rat/mc', 'mc_all_aligned' + '.pdf' ), format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+#MC wonky ratio
+setup(ax)
+ax.set_title( 'misaligned: 5 sector / all'  )
+m = get_rat( dt_mc_sec5.loc[ 1000, 400, 400 ], dt_mc_all.loc[1000, 400, 400 ] )
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c = m['ratio'] , edgecolor = 'None' )
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( osp.join( 'output/req_rat/mc', 'mc_sec5_all_wonky' + '.pdf' ), format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+ax.cla()
+
+#MC wonky sec5
+setup(ax)
+ax.set_title( 'misaligned: 5 sector'  )
+m = dt_mc_sec5.loc[1000, 400, 400]
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c = m , edgecolor = 'None' )
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( osp.join( 'output/req_rat/mc', 'mc_sec5_wonky' + '.pdf' ), format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+ax.cla()
+
+#MC wonky all
+setup(ax)
+ax.set_title( 'misaligned: all'  )
+m = dt_mc_all.loc[1000, 400, 400]
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c = m , edgecolor = 'None' )
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( osp.join( 'output/req_rat/mc', 'mc_all_wonky' + '.pdf' ), format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+ax.cla()
+
+#data all ratio
+setup(ax)
+ax.set_title( 'data all: raw vs kk')
+m = get_rat( dt_raw.loc['all'], dt_kk.loc['all'] )
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c = m['ratio'] , edgecolor = 'None', vmin = 0.7, vmax = 1.0 )
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( osp.join( 'output/req_rat/dt', 'dt_all_raw_kk' + '.pdf' ), format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+ax.cla()
+
+#data 5sector ratio
+setup(ax)
+ax.set_title( 'data 5sectors: raw vs kk')
+m = get_rat( dt_raw.loc['5sectors'], dt_kk.loc['5sectors'] )
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c = m['ratio'] , edgecolor = 'None', vmin = 0.7, vmax = 1.0 )
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( osp.join( 'output/req_rat/dt', 'dt_5sectors_raw_kk' + '.pdf' ), format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+ax.cla()
+
+#data kk ratio
+setup(ax)
+ax.set_title( 'data kk: 5sector vs all')
+m = get_rat( dt_kk.loc['5sectors'], dt_kk.loc['all'] )
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c = m['ratio'] , edgecolor = 'None', vmin = 0.96, vmax = 0.98  )
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( osp.join( 'output/req_rat/dt', 'dt_kk_5sectors_all' + '.pdf' ), format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+ax.cla()
+
+#data raw ratio
+setup(ax)
+ax.set_title( 'data raw: 5sector vs all')
+m = get_rat( dt_raw.loc['5sectors'], dt_raw.loc['all'] )
+plotted = ax.scatter( proj_map['x'], proj_map['y'], c = m['ratio'] , edgecolor = 'None', vmin = 0.85, vmax = 0.96 )
+cbar = plt.colorbar( mappable = plotted )
+plt.savefig( osp.join( 'output/req_rat/dt', 'dt_raw_5sectors_all' + '.pdf' ), format = 'pdf', transparent = 'true' )
+cbar.remove()
+
+ax.cla()
+
+sys.exit(0)
+
+
 
 dt = pd.read_csv( osp.join( folder , mc_file + '.dat' ), 
         delim_whitespace = True, index_col = 'index' )
@@ -29,15 +172,6 @@ rat_5sectors = get_rat( dt, '5sectors', 'all')
 print( rat_10pmts)
 
 
-proj_map = pycedar.make_proj_map()
-
-fig = plt.figure( figsize = [6, 6] )
-fig.set_tight_layout(True)
-ax = fig.add_subplot( 111 )
-
-ax.set_xlabel( 'x (cm)' )
-ax.set_ylabel( 'y (cm)' )
-ax.set_aspect( 'equal' )
 ax.set_title( mc_file  )
 plotted = ax.scatter( proj_map['x'], proj_map['y'], c = rat_5sectors['ratio'] , 
         edgecolor = 'None', vmin = 0.97, vmax = 0.98 )

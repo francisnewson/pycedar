@@ -27,6 +27,8 @@ def plot_splines( input_file, output_file, title ):
 
     asyms.reset_index(level=1, inplace=True)
 
+    asyms.sort( 'y', inplace = True )
+
     print( asyms )
 
     fig = plt.figure( figsize = [6, 6] )
@@ -50,17 +52,17 @@ output_folder = 'output/spline_shapes/permutations'
 beam_types = ['beam', 'gaus', 'pencil']
 selections = ['all', 'pmt10', 'pmt5', 'sec5' ]
 
+for beam_type in beam_types:
+    pycedar.mkdir_p( osp.join(output_folder, beam_type )  )
+
 combos = itertools.product( beam_types, selections )
 
 for combo in combos:
     input_file = '{0}/multi_{1}_yscan/{2}.dat'.format( input_folder, *combo )
     output_file = '{0}/{1}/{2}.pdf'.format( output_folder, *combo )
+    title = '{0}_{1}'.format( *combo )
+    plot_splines( input_file, output_file, title )
     print( input_file )
-
-print( list(combos ))
-
-
-
 
 #input_file = 'data/yscan/pencil_yscan/all.csv'
 #output_file = 'output/spline_shapes/pencil_yscan.pdf'

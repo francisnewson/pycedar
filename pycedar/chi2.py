@@ -82,7 +82,12 @@ class Chi2Aligner:
         dthits = dt['hits'].values
         dtsqerr = dt['sqerr'].values
         for k,mc in self.template_group_totals.iteritems():
-            ratio = dtsum / float( sum ( mc['hits'].values ) )
+            mcsum = float( sum( mc['hits'].values ) )
+            if mcsum == 0:
+                results.append( np.inf )
+                continue
+            else:
+                ratio = dtsum/mcsum
             mchits = mc['hits'].values
             mcsqerr = mc['sqerr'].values
             chi2_terms = chi2_term( dthits, dtsqerr, mchits, mcsqerr, ratio )

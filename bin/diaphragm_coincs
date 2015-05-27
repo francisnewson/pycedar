@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import pycedar
+import sys
+
+dt = pd.read_csv( "data/diaphragm_scan/mc_scan.dat", delim_whitespace = True )
+
+dt_npk = dt[ ['x' , 'y', 'p', 'd', 'nphotons' ] ].set_index( ['x', 'y', 'p'] )
+
+npk_wide = dt_npk[ dt_npk['d'] == 1500 ]
+npk_narrow = dt_npk[ dt_npk['d'] == 1000 ]
+
+print( npk_wide )
+print( npk_narrow )
+
+print( npk_narrow / npk_wide )
+
+
+sys.exit()
+
+folds = list(reversed([ str(n) + '-fold' for n in range(0, 9 ) ]))
+
+#Coincidences
+dt_coincs = dt[['y', 'd'] + folds].set_index(['y', 'd'] ).cumsum( axis = 1).divide(10000).reset_index()
+aligned = dt_coincs[ dt_coincs['y'] == 0 ]
+misaligned = dt_coincs[ dt_coincs['y'] == 300 ]
+
+print( dt_coincs )
+
+fig = plt.figure( figsize = [8, 6] )
+fig.set_tight_layout(True)
+ax = fig.add_subplot( 111 )
+
+ax.grid( 'on' )
+ax.xaxis.set_major_formatter(pycedar.format_mm)
+ax.set_xlabel( 'diaphragm (mm)')
+
+ax.set_ylabel( 'Efficiency for 6-fold coincidences')
+
+ax.plot( aligned['d'].values, aligned['6-fold'].values , '-o', mec = 'None', label = 'Aligned' )
+ax.plot( misaligned['d'].values, misaligned['6-fold'].values , '-o', mec = 'None',  label = 'Misaligned: y = 0.3 mm' )
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'lower right')
+
+plt.savefig( 'output/diaphragm_scan/effs6fold.pdf', format = 'pdf', transparent = 'true' )
+
+ax.cla()
+
+raw_coincs = dt_coincs[ list(reversed( dt_coincs.columns)) ].set_index(['y', 'd'])
+raw_coincs.columns = range( 0,9 )
+raw_coincs = raw_coincs.transpose()
+ax.grid( 'on' )
+
+for x in raw_coincs.columns:
+    aligned = x[0] == 0
+    if aligned:
+        color = 'green'
+    else:
+        color = 'red'
+
+    ax.plot( raw_coincs[x].index, raw_coincs[x].values, '-o', mec = 'None', color = color )
+
+plt.savefig( 'output/diaphragm_scan/effs.pdf', format = 'pdf', transparent = 'true' )
+
+ax.cla()
+
+dt_aligned = dt[ dt['y'] == 0]
+dt_misaligned = dt[ dt['y'] == 300]
+
+ax.plot( dt_aligned['d'].values, dt_aligned['nphotons'], '-o', mec = 'None', label = 'Aligned' )
+ax.plot( dt_misaligned['d'].values, dt_misaligned['nphotons'], '-o', mec = 'None', label = 'Misaligned: y = 0.3mm' )
+
+ax.grid( 'on' )
+ax.xaxis.set_major_formatter(pycedar.format_mm)
+ax.set_xlabel( 'diaphragm (mm)')
+
+ax.set_ylabel( 'Number of photons per kaon')
+
+handles, labels = ax.get_legend_handles_labels()
+plt.legend( handles, labels , loc = 'lower right')
+
+plt.savefig( 'output/diaphragm_scan/ngperk.pdf', format = 'pdf', transparent = 'true' )
